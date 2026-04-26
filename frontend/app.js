@@ -9,6 +9,10 @@ const el = {
   mensagem: document.querySelector("#mensagem"),
   listaFilmes: document.querySelector("#lista-filmes"),
   recarregar: document.querySelector("#recarregar"),
+  busca: document.querySelector("#busca"),
+  statFilmes: document.querySelector("#stat-filmes"),
+  statAvaliacoes: document.querySelector("#stat-avaliacoes"),
+  statMedia: document.querySelector("#stat-media"),
   filmeForm: document.querySelector("#filme-form"),
   filmeFormTitle: document.querySelector("#filme-form-title"),
   cancelarFilme: document.querySelector("#cancelar-filme"),
@@ -72,6 +76,49 @@ function mediaAvaliacoes(avaliacoes) {
   return (soma / avaliacoes.length).toFixed(1);
 }
 
+function totalAvaliacoes() {
+  return state.filmes.reduce(
+    (total, filme) => total + (filme.avaliacoes || []).length,
+    0,
+  );
+}
+
+function mediaGeral() {
+  const avaliacoes = state.filmes.flatMap((filme) => filme.avaliacoes || []);
+  if (!avaliacoes.length) {
+    return "-";
+  }
+  const soma = avaliacoes.reduce((total, item) => total + Number(item.nota), 0);
+  return (soma / avaliacoes.length).toFixed(1);
+}
+
+function atualizarResumo() {
+  el.statFilmes.textContent = state.filmes.length;
+  el.statAvaliacoes.textContent = totalAvaliacoes();
+  el.statMedia.textContent = mediaGeral();
+}
+
+function normalizar(texto) {
+  return String(texto)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function filmesFiltrados() {
+  const termo = normalizar(el.busca.value.trim());
+  if (!termo) {
+    return state.filmes;
+  }
+
+  return state.filmes.filter((filme) => {
+    const conteudo = normalizar(
+      `${filme.titulo} ${filme.diretor} ${filme.genero} ${filme.ano}`,
+    );
+    return conteudo.includes(termo);
+  });
+}
+
 function escapar(texto) {
   return String(texto)
     .replaceAll("&", "&amp;")
@@ -93,12 +140,29 @@ function renderSelectFilmes() {
 }
 
 function renderFilmes() {
+  const filmes = filmesFiltrados();
+
   if (!state.filmes.length) {
-    el.listaFilmes.innerHTML = '<p class="empty">Nenhum filme cadastrado.</p>';
+    el.listaFilmes.innerHTML = `
+      <div class="empty-state">
+        <strong>Nenhum filme cadastrado</strong>
+        <p class="empty">O catalogo aparecera aqui quando a API retornar registros.</p>
+      </div>
+    `;
     return;
   }
 
-  el.listaFilmes.innerHTML = state.filmes
+  if (!filmes.length) {
+    el.listaFilmes.innerHTML = `
+      <div class="empty-state">
+        <strong>Nenhum resultado encontrado</strong>
+        <p class="empty">Revise o termo pesquisado ou atualize a listagem.</p>
+      </div>
+    `;
+    return;
+  }
+
+  el.listaFilmes.innerHTML = filmes
     .map((filme) => {
       const avaliacoes = filme.avaliacoes || [];
       const reviewsHtml = avaliacoes.length
@@ -108,12 +172,12 @@ function renderFilmes() {
                 <div class="review-row">
                   <div class="review-heading">
                     <span>${escapar(avaliacao.nome_avaliador)}</span>
-                    <span>${Number(avaliacao.nota).toFixed(1)}/10</span>
+                    <span class="review-score">${Number(avaliacao.nota).toFixed(1)}/10</span>
                   </div>
                   <p class="review-text">${escapar(avaliacao.comentario)}</p>
                   <div class="actions">
-                    <button class="ghost" type="button" data-action="edit-avaliacao" data-id="${avaliacao.id}">Editar</button>
-                    <button class="danger" type="button" data-action="delete-avaliacao" data-id="${avaliacao.id}">Excluir</button>
+                    <button class="button secondary" type="button" data-action="edit-avaliacao" data-id="${avaliacao.id}">Editar</button>
+                    <button class="button danger" type="button" data-action="delete-avaliacao" data-id="${avaliacao.id}">Excluir</button>
                   </div>
                 </div>
               `,
@@ -123,20 +187,27 @@ function renderFilmes() {
 
       return `
         <article class="movie-card">
-          <div class="movie-header">
-            <div class="movie-title">
+          <div class="movie-poster">
+            <div class="poster-copy">
+              <span class="genre-badge">${escapar(filme.genero)}</span>
               <h3>${escapar(filme.titulo)}</h3>
-              <p class="meta">${escapar(filme.diretor)} - ${escapar(filme.genero)} - ${filme.ano}</p>
             </div>
             <div class="score">${mediaAvaliacoes(avaliacoes)}</div>
           </div>
-          <p>${escapar(filme.sinopse)}</p>
-          <div class="actions">
-            <button class="ghost" type="button" data-action="edit-filme" data-id="${filme.id}">Editar</button>
-            <button class="danger" type="button" data-action="delete-filme" data-id="${filme.id}">Excluir</button>
-            <button class="primary" type="button" data-action="new-avaliacao" data-id="${filme.id}">Avaliar</button>
+          <div class="movie-body">
+            <div class="meta">
+              <span>${escapar(filme.diretor)}</span>
+              <span>${filme.ano}</span>
+              <span>${avaliacoes.length} avaliacoes</span>
+            </div>
+            <p class="sinopse">${escapar(filme.sinopse)}</p>
+            <div class="actions">
+              <button class="button secondary" type="button" data-action="edit-filme" data-id="${filme.id}">Editar</button>
+              <button class="button danger" type="button" data-action="delete-filme" data-id="${filme.id}">Excluir</button>
+              <button class="button primary" type="button" data-action="new-avaliacao" data-id="${filme.id}">Avaliar</button>
+            </div>
+            <div class="reviews">${reviewsHtml}</div>
           </div>
-          <div class="reviews">${reviewsHtml}</div>
         </article>
       `;
     })
@@ -146,6 +217,7 @@ function renderFilmes() {
 async function carregarDados() {
   try {
     state.filmes = await request("/filmes");
+    atualizarResumo();
     renderSelectFilmes();
     renderFilmes();
     atualizarStatus(true);
@@ -283,6 +355,7 @@ el.listaFilmes.addEventListener("click", async (event) => {
 });
 
 el.recarregar.addEventListener("click", carregarDados);
+el.busca.addEventListener("input", renderFilmes);
 el.cancelarFilme.addEventListener("click", limparFilmeForm);
 el.cancelarAvaliacao.addEventListener("click", limparAvaliacaoForm);
 
