@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CineReview</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <img src="assets/cinereview-logo.svg" alt="CineReview" />
+        <div>
+          <h1>CineReview</h1>
+          <p>Filmes e avaliacoes</p>
+        </div>
+      </div>
+      <div id="api-status" class="status-pill">Conectando</div>
+    </header>
+
+    <main class="layout">
+      <section class="panel form-panel">
+        <div class="section-title">
+          <h2 id="filme-form-title">Novo filme</h2>
+          <button id="cancelar-filme" class="ghost hidden" type="button">Cancelar</button>
+        </div>
+
+        <form id="filme-form" class="stack">
+          <input type="hidden" id="filme-id" />
+
+          <label>
+            Titulo
+            <input id="titulo" name="titulo" required maxlength="150" />
+          </label>
+
+          <div class="field-grid">
+            <label>
+              Diretor
+              <input id="diretor" name="diretor" required maxlength="120" />
+            </label>
+            <label>
+              Genero
+              <input id="genero" name="genero" required maxlength="80" />
+            </label>
+          </div>
+
+          <label>
+            Ano
+            <input id="ano" name="ano" type="number" min="1888" max="2100" required />
+          </label>
+
+          <label>
+            Sinopse
+            <textarea id="sinopse" name="sinopse" rows="5" required></textarea>
+          </label>
+
+          <button class="primary" type="submit">Salvar filme</button>
+        </form>
+      </section>
+
+      <section class="panel form-panel">
+        <div class="section-title">
+          <h2 id="avaliacao-form-title">Nova avaliacao</h2>
+          <button id="cancelar-avaliacao" class="ghost hidden" type="button">Cancelar</button>
+        </div>
+
+        <form id="avaliacao-form" class="stack">
+          <input type="hidden" id="avaliacao-id" />
+
+          <label>
+            Filme
+            <select id="filme-avaliacao" name="filme_id" required></select>
+          </label>
+
+          <div class="field-grid">
+            <label>
+              Avaliador
+              <input id="nome-avaliador" name="nome_avaliador" required maxlength="120" />
+            </label>
+            <label>
+              Nota
+              <input id="nota" name="nota" type="number" min="0" max="10" step="0.1" required />
+            </label>
+          </div>
+
+          <label>
+            Comentario
+            <textarea id="comentario" name="comentario" rows="5" required></textarea>
+          </label>
+
+          <button class="primary" type="submit">Salvar avaliacao</button>
+        </form>
+      </section>
+
+      <section class="content">
+        <div class="section-title">
+          <h2>Catalogo</h2>
+          <button id="recarregar" class="ghost" type="button">Atualizar</button>
+        </div>
+        <div id="mensagem" class="message hidden"></div>
+        <div id="lista-filmes" class="movie-grid"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
