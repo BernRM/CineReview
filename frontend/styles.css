@@ -397,6 +397,7 @@ textarea {
   border-radius: 8px;
   background: var(--surface-strong);
   box-shadow: 0 12px 30px rgba(42, 29, 17, 0.08);
+  min-width: 0;
 }
 
 .movie-poster {
@@ -497,6 +498,8 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 999px;
   background: #fbf2e4;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .sinopse,
@@ -504,6 +507,7 @@ textarea {
 .empty {
   color: var(--muted);
   line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .sinopse {
