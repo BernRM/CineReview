@@ -307,6 +307,7 @@ docker compose exec postgres psql -U postgres -d cinereview
 |-- .env.example
 |-- docker-compose.yml
 |-- GUIA_ESTUDO_APRESENTACAO.md
+|-- ROTEIRO_APRESENTACAO.md
 `-- README.md
 ```
 
@@ -323,6 +324,8 @@ Pontos principais para mostrar:
 - `backend/app/main.py`: modelos, schemas, rotas CRUD e relacionamento.
 - `frontend/app.js`: chamadas `fetch` usando `/api`.
 - `README.md`: comandos de execucao e exemplos de rotas.
+- `GUIA_ESTUDO_APRESENTACAO.md`: guia de estudo para entrevista individual.
+- `ROTEIRO_APRESENTACAO.md`: roteiro para treinar a apresentacao passo a passo.
 
 ## Observacoes
 
@@ -331,4 +334,4 @@ Pontos principais para mostrar:
 - O NGINX resolve a comunicacao interna com `fastapi:8080`.
 - O PostgreSQL persiste os dados no volume `postgres_data`.
 - O guia `GUIA_ESTUDO_APRESENTACAO.md` contem perguntas e respostas para a entrevista individual.
-
+- O roteiro `ROTEIRO_APRESENTACAO.md` contem a ordem sugerida para apresentar codigo e execucao.

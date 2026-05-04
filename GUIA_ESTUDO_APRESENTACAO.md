@@ -1,10 +1,17 @@
 # Guia de Estudo para Apresentacao e Entrevista - CineReview
 
-Este guia complementa o documento `guia_projeto_grupo7_cinereview.docx` e foi escrito olhando para o projeto real que esta neste repositorio. A ideia e que qualquer integrante consiga explicar como a aplicacao funciona, onde alterar o codigo e como responder perguntas do professor.
+Este guia foi feito para duas situacoes:
 
-## 1. Resumo do Projeto Real
+- Apresentar o projeto para o professor, mostrando codigo e execucao.
+- Responder a entrevista individual depois da apresentacao.
 
-O CineReview e uma aplicacao web CRUD para filmes e avaliacoes.
+A ideia principal e simples: qualquer integrante deve conseguir explicar o fluxo completo, mesmo que cada um estude uma parte com mais profundidade.
+
+## 1. Resumo em 30 segundos
+
+Frase pronta:
+
+> O CineReview e uma aplicacao web conteinerizada para cadastro de filmes e avaliacoes. O projeto tem tres containers: NGINX, FastAPI e PostgreSQL. O NGINX e o unico exposto ao computador, servindo o frontend e encaminhando as rotas `/api` para o FastAPI. O FastAPI executa o CRUD e acessa o PostgreSQL pela rede Docker interna `netatividade01`. O banco usa volume Docker para manter os dados salvos.
 
 Tema do grupo:
 
@@ -18,33 +25,47 @@ Entidades:
 Relacionamento:
 
 - Um filme pode ter varias avaliacoes.
-- Uma avaliacao pertence a um unico filme.
-- No banco, isso e feito com `avaliacoes.filme_id` apontando para `filmes.id`.
+- Uma avaliacao pertence a um filme.
+- `avaliacoes.filme_id` aponta para `filmes.id`.
+- Ao excluir um filme, as avaliacoes dele tambem sao removidas.
 
-Stack usada:
+## 2. O que o professor pediu e onde esta no projeto
 
-- Docker Compose para orquestrar os containers.
-- NGINX para servir o frontend e fazer proxy reverso.
-- FastAPI com Python para a API.
-- PostgreSQL para persistir os dados.
-- HTML, CSS e JavaScript puro no frontend.
+| Requisito | Onde mostrar |
+| --- | --- |
+| Usar Docker Compose | `docker-compose.yml` |
+| Ter os servicos `nginx`, `fastapi` e `postgres` | `docker-compose.yml` |
+| Somente NGINX exposto ao hospedeiro | Apenas `nginx` tem `ports` |
+| NGINX nas portas `80:8080` e `443:8443` | `docker-compose.yml` |
+| Frontend estatico servido pelo NGINX | `nginx/Dockerfile` e `nginx/default.conf` |
+| Proxy reverso de `/api` para o FastAPI | `nginx/default.conf` |
+| FastAPI rodando na porta interna `8080` | `backend/Dockerfile` |
+| PostgreSQL com usuario `postgres` | `docker-compose.yml` |
+| Senha do banco por `.env` | `.env` e `docker-compose.yml` |
+| Volume persistente do PostgreSQL | `postgres_data` em `docker-compose.yml` |
+| Rede Docker chamada `netatividade01` | `docker-compose.yml` |
+| CRUD completo do tema | `backend/app/main.py` |
+| Frontend consumindo a API | `frontend/app.js` |
+| Documentacao para executar e testar | `README.md` |
 
-## 2. Como Explicar a Arquitetura em 30 Segundos
+## 3. Fluxo da aplicacao
 
-Frase pronta:
+Fluxo quando o usuario abre a tela:
 
-> O projeto tem tres containers principais: NGINX, FastAPI e PostgreSQL. O unico exposto ao computador e o NGINX, nas portas 80 e 443. Ele entrega o frontend estatico na rota `/` e encaminha as chamadas `/api` para o container FastAPI pela rede interna `netatividade01`. O FastAPI acessa o PostgreSQL tambem pela rede interna, usando variaveis de ambiente. O banco persiste os dados em um volume Docker.
+1. O usuario acessa `http://localhost`.
+2. O NGINX recebe a requisicao na porta 80 do computador.
+3. O NGINX entrega os arquivos `index.html`, `styles.css`, `app.js` e o logo.
+4. O JavaScript chama rotas como `/api/filmes`.
+5. O NGINX recebe `/api/filmes` e encaminha para `http://fastapi:8080/api/filmes`.
+6. O FastAPI processa a rota e usa SQLAlchemy para consultar ou alterar o PostgreSQL.
+7. O PostgreSQL grava os dados no volume `postgres_data`.
+8. A resposta volta como JSON para o frontend, que atualiza a tela.
 
-Fluxo de uma requisicao:
+Frase curta para explicar:
 
-1. O usuario abre `http://localhost`.
-2. O NGINX entrega `index.html`, `styles.css`, `app.js` e o logo.
-3. O JavaScript chama rotas como `/api/filmes`.
-4. O NGINX recebe `/api/filmes` e encaminha para `http://fastapi:8080/api/filmes`.
-5. O FastAPI processa a rota, acessa o PostgreSQL e devolve JSON.
-6. O frontend atualiza a tela com a resposta.
+> O navegador fala com o NGINX. O NGINX fala com o FastAPI. O FastAPI fala com o PostgreSQL. O banco salva os dados no volume.
 
-## 3. Estrutura Real do Projeto
+## 4. Estrutura do projeto
 
 ```text
 CineView/
@@ -69,23 +90,23 @@ CineView/
     `-- default.conf
 ```
 
-Ponto importante para a entrevista:
+Observacao importante:
 
-- O documento original sugere separar `models.py`, `database.py`, `schemas.py` e `routes/`.
-- Neste projeto, para ficar didatico e curto, tudo do backend esta em `backend/app/main.py`.
-- Isso nao impede o funcionamento. A separacao em varios arquivos seria uma melhoria de organizacao, nao uma exigencia para a API funcionar.
+- O documento do professor pode sugerir separar `models.py`, `schemas.py`, `database.py` e `routes/`.
+- Neste projeto, o backend ficou concentrado em `backend/app/main.py` para ser mais curto e didatico.
+- Isso nao impede o funcionamento. Separar em arquivos seria uma melhoria de organizacao, nao uma obrigacao para a atividade funcionar.
 
-## 4. Docker Compose
+## 5. Docker Compose
 
-Arquivo principal:
+Arquivo:
 
 - `docker-compose.yml`
 
 Servicos:
 
-- `nginx`
-- `fastapi`
-- `postgres`
+- `nginx`: entrada da aplicacao, frontend e proxy reverso.
+- `fastapi`: API e regras de CRUD.
+- `postgres`: banco de dados.
 
 Rede:
 
@@ -95,9 +116,9 @@ Volume:
 
 - `postgres_data`
 
-### 4.1 Servico nginx
+### 5.1 Servico nginx
 
-Trecho importante:
+Trecho principal:
 
 ```yaml
 nginx:
@@ -117,30 +138,28 @@ nginx:
 
 Como explicar:
 
-- O NGINX e construido a partir de `nginx/Dockerfile`.
-- Ele depende do FastAPI saudavel antes de iniciar.
+- O NGINX e criado usando `nginx/Dockerfile`.
 - Ele e o unico servico com `ports`.
-- `80:8080` significa: porta 80 do computador aponta para porta 8080 do container.
-- `443:8443` significa: porta 443 do computador aponta para porta 8443 do container.
-- Ele participa da rede `netatividade01`, entao consegue falar com o servico `fastapi`.
+- `80:8080` significa porta 80 do computador apontando para porta 8080 do container.
+- `443:8443` significa porta 443 do computador apontando para porta 8443 do container.
+- Ele depende do FastAPI estar saudavel.
 
 Pergunta provavel:
 
-> Por que o FastAPI e o PostgreSQL nao tem `ports`?
+> Por que FastAPI e PostgreSQL nao tem `ports`?
 
 Resposta:
 
-> Porque a atividade exige que somente o NGINX seja exposto ao hospedeiro. O backend e o banco ficam protegidos na rede interna Docker. O NGINX e a porta de entrada da aplicacao.
+> Porque a atividade pede que somente o NGINX seja exposto ao hospedeiro. O backend e o banco ficam protegidos na rede interna Docker.
 
-### 4.2 Servico fastapi
+### 5.2 Servico fastapi
 
-Trecho importante:
+Trecho principal:
 
 ```yaml
 fastapi:
   build:
     context: ./backend
-  container_name: cinereview-fastapi
   environment:
     DB_HOST: postgres
     DB_PORT: 5432
@@ -156,11 +175,11 @@ fastapi:
 
 Como explicar:
 
-- A imagem do backend e criada usando `backend/Dockerfile`.
-- O FastAPI recebe dados do banco por variaveis de ambiente.
-- `DB_HOST: postgres` funciona porque, dentro da rede Docker, o nome do servico vira um DNS interno.
-- `expose: 8080` documenta que a API usa a porta 8080 internamente.
-- `depends_on` com `condition: service_healthy` faz o FastAPI esperar o PostgreSQL estar pronto.
+- O FastAPI e construido a partir da pasta `backend`.
+- Ele recebe host, banco, usuario e senha por variaveis de ambiente.
+- `DB_HOST: postgres` funciona porque o Docker Compose cria DNS interno com o nome do servico.
+- `expose: 8080` indica a porta interna da API.
+- Ele espera o PostgreSQL estar saudavel antes de iniciar.
 
 Pergunta provavel:
 
@@ -168,16 +187,15 @@ Pergunta provavel:
 
 Resposta:
 
-> Significa que o backend vai conectar no servico chamado `postgres` dentro da rede Docker. O Docker Compose cria esse nome automaticamente como endereco interno.
+> Significa que o backend vai conectar no servico chamado `postgres` dentro da rede Docker. Nao precisa de IP fixo, porque o Docker resolve o nome automaticamente.
 
-### 4.3 Servico postgres
+### 5.3 Servico postgres
 
-Trecho importante:
+Trecho principal:
 
 ```yaml
 postgres:
   image: postgres:16-alpine
-  container_name: cinereview-postgres
   environment:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -189,42 +207,41 @@ postgres:
 Como explicar:
 
 - Usa imagem oficial do PostgreSQL.
-- O usuario e `postgres`, como a atividade pede.
-- A senha vem do `.env`.
-- Os dados ficam em `/var/lib/postgresql/data` dentro do container.
-- O volume `postgres_data` preserva os dados mesmo depois de `docker compose down`.
+- O usuario e `postgres`.
+- A senha vem do arquivo `.env`.
+- O volume guarda os dados do banco.
+- Se o container for recriado, os dados continuam.
 
-Atenção:
+Atencao:
 
-- A atividade pede que a senha seja a matricula de um integrante.
-- Entao o valor de `POSTGRES_PASSWORD` no `.env` deve ser trocado para a matricula antes da entrega.
-- Se o volume ja tiver sido criado com uma senha antiga, trocar o `.env` nao muda a senha dentro do banco existente. Em ambiente de teste, pode ser necessario rodar `docker compose down -v` para recriar o volume.
+- Se trocar a senha no `.env` depois que o volume ja existe, o banco antigo continua com a senha anterior.
+- Em ambiente de teste, para recriar tudo do zero, use `docker compose down -v`.
 
-## 5. NGINX
+## 6. NGINX
 
 Arquivos:
 
 - `nginx/Dockerfile`
 - `nginx/default.conf`
 
-### 5.1 Dockerfile do NGINX
+### 6.1 Dockerfile do NGINX
 
 O Dockerfile:
 
 - Usa `nginx:1.27-alpine`.
 - Instala `openssl`.
-- Gera um certificado autoassinado.
+- Gera certificado autoassinado.
 - Copia `nginx/default.conf`.
 - Copia a pasta `frontend/` para `/usr/share/nginx/html/`.
 - Expoe internamente as portas `8080` e `8443`.
 
-Como explicar:
+Como falar:
 
-> O NGINX serve os arquivos estaticos que foram copiados para `/usr/share/nginx/html`. Ele tambem escuta em 8080 para HTTP e 8443 para HTTPS interno. No Compose, essas portas internas viram 80 e 443 no computador.
+> O NGINX entrega o frontend estatico e tambem recebe as chamadas da API para encaminhar ao backend. O certificado autoassinado permite testar HTTPS local em `https://localhost`.
 
-### 5.2 Configuracao do proxy reverso
+### 6.2 Proxy reverso
 
-Trecho principal de `nginx/default.conf`:
+Trecho principal:
 
 ```nginx
 location /api {
@@ -239,29 +256,21 @@ location /api {
 
 Como explicar:
 
-- Qualquer rota que comece com `/api` sera enviada ao container `fastapi` na porta `8080`.
-- `fastapi` nao e IP fixo; e o nome do servico no Docker Compose.
-- Isso e melhor que usar IP manual, porque o IP do container pode mudar.
-- Os headers preservam informacoes da requisicao original.
-
-Ponto muito importante:
-
-- Neste projeto, o FastAPI tambem define as rotas com `/api`, por exemplo `/api/filmes`.
-- O NGINX usa `proxy_pass http://fastapi:8080;` sem barra no final.
-- Assim, `/api/filmes` chega ao backend como `/api/filmes`.
-- Se fosse usado `proxy_pass http://fastapi:8080/;`, o comportamento de caminho poderia mudar e exigiria ajustar as rotas.
+- Tudo que comeca com `/api` vai para o servico `fastapi` na porta 8080.
+- `fastapi` e o nome do servico no Compose, nao uma URL publica.
+- O navegador nao acessa `fastapi:8080` diretamente; so o NGINX acessa.
 
 Pergunta provavel:
 
-> Por que o frontend nao chama `http://fastapi:8080` direto?
+> Por que o frontend chama `/api` em vez de `http://fastapi:8080`?
 
 Resposta:
 
-> Porque esse endereco so existe dentro da rede Docker. O navegador do usuario acessa apenas o NGINX em `localhost`. Por isso o frontend chama `/api`, e o NGINX encaminha internamente.
+> Porque o navegador esta fora da rede Docker e nao conhece o nome `fastapi`. O navegador chama o NGINX em `localhost`, e o NGINX encaminha internamente.
 
-## 6. Backend FastAPI
+## 7. Backend FastAPI
 
-Arquivo:
+Arquivo principal:
 
 - `backend/app/main.py`
 
@@ -272,9 +281,9 @@ Dependencias:
 - `SQLAlchemy`
 - `psycopg2-binary`
 
-### 6.1 Conexao com o banco
+### 7.1 Conexao com o banco
 
-Trecho conceitual:
+O backend le variaveis de ambiente:
 
 ```python
 DB_HOST = os.getenv("DB_HOST", "postgres")
@@ -286,73 +295,42 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
 
 Como explicar:
 
-- `os.getenv` le variaveis de ambiente.
-- Esses valores sao enviados pelo `docker-compose.yml`.
-- O backend nao tem senha fixa no codigo.
-- Isso facilita mudar banco, senha ou host sem editar o Python.
+- O Python nao tem senha travada no codigo.
+- O Compose envia os valores para o container.
+- A string `DATABASE_URL` monta o endereco final do PostgreSQL.
 
-Trecho conceitual:
-
-```python
-DATABASE_URL = (
-    f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-)
-```
-
-Como explicar:
-
-> Essa string e o endereco completo do banco. Ela diz: use PostgreSQL com o driver psycopg2, conecte com usuario e senha, no host e porta informados, e acesse o banco definido.
-
-### 6.2 SQLAlchemy
+### 7.2 SQLAlchemy
 
 Objetos importantes:
 
-- `engine`: representa a conexao com o banco.
-- `SessionLocal`: fabrica sessoes de banco para cada requisicao.
-- `Base`: classe base usada para criar os modelos/tabelas.
+- `engine`: conexao principal com o banco.
+- `SessionLocal`: cria sessoes para conversar com o banco.
+- `Base`: base dos modelos/tabelas.
+- `get_db()`: cria uma sessao para a rota e fecha no final.
 
 Pergunta provavel:
 
-> Por que existe `get_db()`?
+> Por que usamos `get_db()` com `Depends`?
 
 Resposta:
 
-> Porque cada rota precisa de uma sessao de banco. A funcao `get_db()` cria a sessao, entrega para a rota com `Depends`, e fecha a sessao no final para evitar conexoes abertas.
+> Porque cada requisicao precisa de uma sessao de banco. O FastAPI injeta essa sessao na rota, e a funcao fecha a conexao ao terminar.
 
-### 6.3 Modelos do banco
+### 7.3 Modelos
 
 Modelo `Filme`:
 
-```python
-class Filme(Base):
-    __tablename__ = "filmes"
-```
-
-Campos:
-
-- `id`
-- `titulo`
-- `diretor`
-- `genero`
-- `ano`
-- `sinopse`
-
-Relacionamento:
-
-```python
-avaliacoes = relationship(
-    "Avaliacao",
-    back_populates="filme",
-    cascade="all, delete-orphan",
-)
-```
-
-Como explicar:
-
-- `relationship` permite acessar as avaliacoes de um filme pelo Python.
-- `cascade="all, delete-orphan"` faz com que, ao apagar um filme, suas avaliacoes tambem sejam apagadas.
+- Tabela `filmes`.
+- Campos: `id`, `titulo`, `diretor`, `genero`, `ano`, `sinopse`.
+- Relacionamento: `avaliacoes`.
 
 Modelo `Avaliacao`:
+
+- Tabela `avaliacoes`.
+- Campos: `id`, `filme_id`, `nome_avaliador`, `nota`, `comentario`.
+- `filme_id` e a chave estrangeira para `filmes.id`.
+
+Trecho importante:
 
 ```python
 filme_id = Column(Integer, ForeignKey("filmes.id", ondelete="CASCADE"), nullable=False)
@@ -360,17 +338,15 @@ filme_id = Column(Integer, ForeignKey("filmes.id", ondelete="CASCADE"), nullable
 
 Como explicar:
 
-- `filme_id` e a chave estrangeira.
-- Ela garante que a avaliacao esteja ligada a um filme.
-- `ondelete="CASCADE"` reforca a ideia de apagar avaliacoes quando o filme for apagado.
+> `filme_id` liga uma avaliacao a um filme. Isso cria o relacionamento entre as tabelas.
 
-### 6.4 Schemas Pydantic
+### 7.4 Schemas Pydantic
 
 Schemas de filme:
 
-- `FilmeCreate`: dados para criar.
-- `FilmeUpdate`: dados opcionais para editar.
-- `FilmeRead`: formato de resposta.
+- `FilmeCreate`: dados obrigatorios para criar.
+- `FilmeUpdate`: campos opcionais para editar.
+- `FilmeRead`: formato da resposta.
 
 Schemas de avaliacao:
 
@@ -385,22 +361,15 @@ nota: float = Field(ge=0, le=10)
 ano: int = Field(ge=1888, le=2100)
 ```
 
-Como explicar:
-
-- `ge` significa maior ou igual.
-- `le` significa menor ou igual.
-- A nota so aceita valores de 0 a 10.
-- O ano so aceita valores de 1888 a 2100.
-
 Pergunta provavel:
 
 > Qual a diferenca entre model SQLAlchemy e schema Pydantic?
 
 Resposta:
 
-> SQLAlchemy define como os dados sao salvos no banco. Pydantic define como os dados entram e saem pela API, incluindo validacao.
+> SQLAlchemy define a tabela no banco. Pydantic define o formato dos dados que entram e saem pela API, incluindo validacao.
 
-### 6.5 Inicializacao das tabelas
+### 7.5 Criacao das tabelas
 
 Funcao:
 
@@ -410,9 +379,9 @@ criar_tabelas_com_retry()
 
 Como explicar:
 
-- Ela tenta conectar no banco.
-- Se o PostgreSQL ainda nao estiver pronto, aguarda e tenta de novo.
-- Quando conecta, executa `Base.metadata.create_all(bind=engine)`.
+- A funcao tenta conectar no banco.
+- Se o banco ainda nao estiver pronto, espera e tenta de novo.
+- Quando conecta, roda `Base.metadata.create_all(bind=engine)`.
 - Isso cria as tabelas se elas ainda nao existirem.
 
 Pergunta provavel:
@@ -421,9 +390,9 @@ Pergunta provavel:
 
 Resposta:
 
-> Nao. Para uma atividade didatica, usamos `create_all` para criar as tabelas automaticamente. Em projeto profissional, seria melhor usar Alembic para migrations.
+> Nao. Para uma atividade didatica, usamos `create_all`. Em projeto profissional, seria melhor usar Alembic para controlar migrations.
 
-### 6.6 Rotas do backend
+### 7.6 Rotas
 
 Saude:
 
@@ -436,56 +405,40 @@ Filmes:
 - `GET /api/filmes/{filme_id}`
 - `PUT /api/filmes/{filme_id}`
 - `DELETE /api/filmes/{filme_id}`
+- `GET /api/filmes/{filme_id}/avaliacoes`
 
 Avaliacoes:
 
 - `POST /api/avaliacoes`
 - `GET /api/avaliacoes`
 - `GET /api/avaliacoes?filme_id=1`
-- `GET /api/filmes/{filme_id}/avaliacoes`
 - `GET /api/avaliacoes/{avaliacao_id}`
 - `PUT /api/avaliacoes/{avaliacao_id}`
 - `DELETE /api/avaliacoes/{avaliacao_id}`
 
 Tratamento de erro:
 
-- `buscar_filme_ou_404` retorna erro 404 se o filme nao existir.
-- `buscar_avaliacao_ou_404` retorna erro 404 se a avaliacao nao existir.
+- `buscar_filme_ou_404`: retorna 404 se o filme nao existe.
+- `buscar_avaliacao_ou_404`: retorna 404 se a avaliacao nao existe.
 
 Pergunta provavel:
 
-> O que acontece se eu tentar criar avaliacao para um filme inexistente?
+> O que acontece se criar avaliacao para filme inexistente?
 
 Resposta:
 
-> Antes de criar a avaliacao, a rota chama `buscar_filme_ou_404`. Se o filme nao existir, a API devolve 404 e nao grava a avaliacao.
+> A rota chama `buscar_filme_ou_404` antes de gravar. Se o filme nao existir, a API retorna 404 e nao salva a avaliacao.
 
-## 7. Frontend
+## 8. Frontend
 
 Arquivos:
 
-- `frontend/index.html`
-- `frontend/styles.css`
-- `frontend/app.js`
-- `frontend/assets/cinereview-logo.svg`
+- `frontend/index.html`: estrutura da tela.
+- `frontend/styles.css`: visual.
+- `frontend/app.js`: logica, fetch e eventos.
+- `frontend/assets/cinereview-logo.svg`: logo.
 
-### 7.1 index.html
-
-O HTML tem:
-
-- Cabecalho com nome do sistema.
-- Indicador de status da API.
-- Formulario de filme.
-- Formulario de avaliacao.
-- Area de catalogo/listagem.
-
-Como explicar:
-
-> O HTML define a estrutura da tela. Ele nao acessa o banco diretamente. Quem faz chamadas HTTP e o JavaScript no `app.js`.
-
-### 7.2 app.js
-
-Trecho importante:
+Trecho principal:
 
 ```javascript
 const API = "/api";
@@ -494,67 +447,41 @@ const API = "/api";
 Como explicar:
 
 - O frontend usa caminho relativo.
-- Isso evita CORS.
 - O navegador chama o mesmo host do NGINX.
-- O NGINX encaminha para o backend.
+- O NGINX encaminha `/api` para o FastAPI.
+- Isso evita problema de CORS.
 
-Funcao importante:
+Funcoes importantes:
 
-```javascript
-async function request(path, options = {}) {
-  const response = await fetch(`${API}${path}`, ...)
-}
-```
-
-Como explicar:
-
-- Centraliza chamadas para a API.
-- Adiciona `Content-Type: application/json`.
-- Trata resposta `204 No Content`.
-- Mostra erros retornados pela API.
-
-Funcoes principais:
-
-- `carregarDados()`: busca filmes e atualiza tela.
-- `renderSelectFilmes()`: preenche o select de filmes no formulario de avaliacao.
-- `renderFilmes()`: monta os cards dos filmes e avaliacoes.
-- `limparFilmeForm()`: limpa formulario de filme.
-- `limparAvaliacaoForm()`: limpa formulario de avaliacao.
-- Event listeners dos formularios: criam ou editam registros.
-- Event listener da lista: edita ou exclui filmes e avaliacoes.
+- `request()`: centraliza chamadas `fetch`.
+- `carregarDados()`: carrega filmes da API.
+- `renderFilmes()`: desenha os cards na tela.
+- `renderSelectFilmes()`: preenche o select de filmes para avaliacao.
+- Event listener do formulario de filme: cria ou edita filme.
+- Event listener do formulario de avaliacao: cria ou edita avaliacao.
+- Event listener da lista: trata botoes editar, excluir e avaliar.
 
 Pergunta provavel:
 
-> Onde eu mudaria o frontend para chamar outra rota?
+> O frontend acessa o banco?
 
 Resposta:
 
-> Em `frontend/app.js`, nas chamadas da funcao `request`, por exemplo `request("/filmes")` ou `request("/avaliacoes")`.
+> Nao. O frontend chama a API pelo NGINX. Quem acessa o banco e o FastAPI.
 
-## 8. Como Demonstrar na Apresentacao
+## 9. Comandos que todos devem saber
 
-Roteiro pratico:
+Verificar Docker:
 
-1. Mostrar `docker-compose.yml`.
-2. Apontar que so `nginx` tem `ports`.
-3. Mostrar a rede `netatividade01`.
-4. Mostrar o volume `postgres_data`.
-5. Mostrar que o `fastapi` depende do `postgres` com healthcheck.
-6. Mostrar `nginx/default.conf` e o `proxy_pass`.
-7. Mostrar `backend/app/main.py` e explicar modelos, schemas e rotas.
-8. Mostrar `frontend/app.js` e explicar `const API = "/api"`.
-9. Rodar `docker compose up --build`.
-10. Abrir `http://localhost`.
-11. Criar um filme.
-12. Criar uma avaliacao para esse filme.
-13. Editar e excluir registros.
-14. Abrir `http://localhost/api/docs`.
+```bash
+docker version
+```
 
-Frase boa para fechar:
+Validar Compose:
 
-> A aplicacao demonstra a topologia pedida: frontend e proxy no NGINX, API isolada no FastAPI, banco isolado no PostgreSQL, comunicacao interna pela rede Docker e persistencia por volume.
-
-## 9. Comandos que Todos Devem Saber
+```bash
+docker compose config
+```
 
 Subir reconstruindo:
 
@@ -572,12 +499,6 @@ Ver containers:
 
 ```bash
 docker compose ps
-```
-
-Ver configuracao final do Compose:
-
-```bash
-docker compose config
 ```
 
 Ver logs:
@@ -607,27 +528,17 @@ Entrar no PostgreSQL:
 docker compose exec postgres psql -U postgres -d cinereview
 ```
 
-Listar tabelas no PostgreSQL:
+Comandos SQL uteis:
 
 ```sql
 \dt
-```
-
-Consultar filmes:
-
-```sql
 SELECT * FROM filmes;
-```
-
-Consultar avaliacoes:
-
-```sql
 SELECT * FROM avaliacoes;
 ```
 
-## 10. Testes com curl
+## 10. Testes rapidos
 
-Health check:
+Health:
 
 ```bash
 curl.exe http://localhost/api/health
@@ -675,101 +586,97 @@ Excluir filme:
 curl.exe -X DELETE http://localhost/api/filmes/1
 ```
 
-## 11. Perguntas Provaveis da Entrevista
+## 11. Perguntas provaveis da entrevista
 
 ### Docker e Compose
 
-Pergunta: O que o Docker Compose faz neste projeto?
+Pergunta: O que o Docker Compose faz?
 
-Resposta: Ele sobe e integra os tres servicos da aplicacao: NGINX, FastAPI e PostgreSQL, criando rede, volume, variaveis de ambiente e dependencias.
+Resposta: Ele sobe e integra os containers da aplicacao com um comando, criando rede, volume, variaveis de ambiente e dependencias.
 
-Pergunta: Por que usamos containers separados?
+Pergunta: Por que usar containers separados?
 
-Resposta: Para separar responsabilidades. O NGINX cuida da entrada e frontend, o FastAPI da regra de negocio/API, e o PostgreSQL da persistencia dos dados.
+Resposta: Para separar responsabilidades: NGINX cuida da entrada, FastAPI da API, PostgreSQL dos dados.
 
 Pergunta: O que e a rede `netatividade01`?
 
-Resposta: E uma rede Docker customizada onde os containers se comunicam internamente por nome de servico.
+Resposta: E uma rede Docker onde os containers conseguem se comunicar internamente pelo nome do servico.
 
-Pergunta: O que e um volume Docker?
+Pergunta: O que e um volume?
 
-Resposta: E uma area persistente gerenciada pelo Docker. O volume do PostgreSQL guarda os dados mesmo quando o container e recriado.
+Resposta: E uma area persistente gerenciada pelo Docker. Aqui ele guarda os dados do PostgreSQL.
 
-Pergunta: O que acontece se rodar `docker compose down -v`?
+Pergunta: Qual a diferenca entre `ports` e `expose`?
 
-Resposta: Os containers param e o volume e apagado. No caso do PostgreSQL, os dados do banco sao perdidos.
+Resposta: `ports` publica uma porta no computador. `expose` apenas documenta/disponibiliza a porta internamente entre containers.
 
 ### NGINX
 
 Pergunta: O que e proxy reverso?
 
-Resposta: E quando um servidor recebe requisicoes do cliente e encaminha internamente para outro servico. Aqui, o NGINX recebe `/api` e encaminha para o FastAPI.
+Resposta: E quando um servidor recebe a requisicao do cliente e encaminha para outro servico interno. Aqui o NGINX encaminha `/api` para o FastAPI.
 
 Pergunta: Por que o NGINX e o unico exposto?
 
-Resposta: Porque ele e a porta de entrada. Isso deixa backend e banco protegidos na rede interna e cumpre o requisito da atividade.
+Resposta: Porque ele e a porta de entrada. Backend e banco ficam isolados na rede interna, como a atividade pede.
 
 Pergunta: Onde o NGINX serve o frontend?
 
-Resposta: Em `/usr/share/nginx/html`, dentro do container. O Dockerfile copia a pasta `frontend/` para esse local.
+Resposta: Em `/usr/share/nginx/html`, dentro do container.
 
 ### FastAPI
 
 Pergunta: Qual comando inicia a API?
 
-Resposta: O `CMD` do Dockerfile executa `uvicorn app.main:app --host 0.0.0.0 --port 8080`.
-
-Pergunta: O que e Uvicorn?
-
-Resposta: E o servidor ASGI que executa a aplicacao FastAPI dentro do container.
+Resposta: O Dockerfile executa `uvicorn app.main:app --host 0.0.0.0 --port 8080`.
 
 Pergunta: Onde estao as rotas?
 
-Resposta: No arquivo `backend/app/main.py`, decoradas com `@app.get`, `@app.post`, `@app.put` e `@app.delete`.
+Resposta: Em `backend/app/main.py`, com decoradores `@app.get`, `@app.post`, `@app.put` e `@app.delete`.
 
 Pergunta: Como a API valida dados?
 
-Resposta: Usando schemas Pydantic, com `Field`, limites de tamanho, `nota` entre 0 e 10 e `ano` entre 1888 e 2100.
+Resposta: Com Pydantic e `Field`, por exemplo nota entre 0 e 10 e ano entre 1888 e 2100.
 
 ### PostgreSQL
 
-Pergunta: Como o backend conecta no banco?
+Pergunta: Como o backend encontra o banco?
 
-Resposta: Ele le `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` e `DB_PASSWORD` das variaveis de ambiente e monta a `DATABASE_URL`.
+Resposta: Pelas variaveis de ambiente do Compose. O host e `postgres`, nome do servico na rede Docker.
 
-Pergunta: Por que `postgres` nao tem porta publicada?
+Pergunta: Por que o banco nao tem porta publicada?
 
-Resposta: Porque o banco so deve ser acessado pela rede interna, principalmente pelo backend.
+Resposta: Porque ele so precisa ser acessado pelo backend, internamente.
 
-Pergunta: Como provar que os dados persistem?
+Pergunta: Como provar persistencia?
 
-Resposta: Cadastre dados, rode `docker compose down`, depois `docker compose up` novamente. Os dados continuam porque estao no volume.
+Resposta: Cadastrar dados, rodar `docker compose down`, subir de novo e ver que os dados continuam.
 
-### CRUD e Relacionamento
+### CRUD e relacionamento
 
 Pergunta: O que e CRUD?
 
 Resposta: Create, Read, Update e Delete: criar, listar/buscar, atualizar e remover registros.
 
-Pergunta: Onde esta o relacionamento entre filme e avaliacao?
+Pergunta: Onde esta a ForeignKey?
 
-Resposta: Em `Avaliacao.filme_id`, que e uma ForeignKey para `filmes.id`, e nos `relationship` entre `Filme` e `Avaliacao`.
+Resposta: Em `Avaliacao.filme_id`, apontando para `filmes.id`.
 
 Pergunta: O que acontece ao excluir um filme?
 
-Resposta: As avaliacoes ligadas a ele tambem sao excluidas por causa do cascade configurado no relacionamento.
+Resposta: As avaliacoes ligadas a ele tambem sao excluidas por causa do cascade.
 
 ### Frontend
 
-Pergunta: Por que o frontend usa `/api` em vez de uma URL completa?
+Pergunta: Por que nao tem CORS?
 
-Resposta: Porque frontend e API estao no mesmo host visto pelo navegador. O NGINX resolve o encaminhamento internamente, evitando CORS.
+Resposta: Porque o navegador chama sempre o NGINX no mesmo host. O proxy interno faz o encaminhamento para a API.
 
 Pergunta: Onde fica a logica de editar e excluir?
 
-Resposta: Em `frontend/app.js`, principalmente nos event listeners dos formularios e da lista de filmes.
+Resposta: Em `frontend/app.js`, nos event listeners dos formularios e da lista.
 
-## 12. Alteracoes que o Professor Pode Pedir
+## 12. Se o professor pedir uma alteracao
 
 ### Adicionar campo `duracao` em filmes
 
@@ -782,81 +689,40 @@ Arquivos:
 
 Passos:
 
-1. Adicionar `duracao = Column(Integer, nullable=True)` no modelo `Filme`.
-2. Adicionar `duracao` nos schemas `FilmeBase` e `FilmeUpdate`.
-3. Adicionar input no formulario de filme.
-4. Enviar `duracao` no payload do JavaScript.
-5. Mostrar `duracao` no card.
-6. Se o banco ja existir, em ambiente de teste usar `docker compose down -v` para recriar as tabelas.
+1. Adicionar coluna `duracao` no modelo `Filme`.
+2. Adicionar o campo nos schemas `FilmeBase` e `FilmeUpdate`.
+3. Criar input no formulario.
+4. Enviar o campo no payload do JavaScript.
+5. Mostrar o campo no card.
+6. Se a tabela ja existe, em teste recriar o volume com `docker compose down -v`.
 
-### Filtrar filmes por genero
+### Criar filtro por genero
 
-Arquivo principal:
+Onde mexer:
 
 - `backend/app/main.py`
+- `frontend/app.js`
 
 Ideia:
 
-```python
-@app.get("/api/filmes", response_model=list[FilmeRead])
-def listar_filmes(genero: Optional[str] = None, db: Session = Depends(get_db)):
-    consulta = db.query(Filme)
-    if genero:
-        consulta = consulta.filter(Filme.genero.ilike(f"%{genero}%"))
-    return consulta.order_by(Filme.id).all()
-```
+- Adicionar parametro opcional `genero` em `GET /api/filmes`.
+- No frontend, chamar `/filmes?genero=Drama`.
 
-Depois, no frontend, chamar:
+### Separar backend em arquivos
 
-```javascript
-request("/filmes?genero=Drama")
-```
+Arquivos possiveis:
 
-### Criar rota para media de notas
+- `database.py`
+- `models.py`
+- `schemas.py`
+- `routes/filmes.py`
+- `routes/avaliacoes.py`
 
-Arquivo:
+Como responder:
 
-- `backend/app/main.py`
+> Hoje esta tudo em `main.py` para facilitar a leitura na atividade. Separar em arquivos melhora organizacao, mas nao muda a arquitetura.
 
-Ideia:
-
-```python
-@app.get("/api/filmes/{filme_id}/media")
-def media_filme(filme_id: int, db: Session = Depends(get_db)):
-    filme = buscar_filme_ou_404(db, filme_id)
-    if not filme.avaliacoes:
-        return {"filme_id": filme_id, "media": None}
-    media = sum(a.nota for a in filme.avaliacoes) / len(filme.avaliacoes)
-    return {"filme_id": filme_id, "media": round(media, 1)}
-```
-
-### Mudar nota de 0-10 para 0-5
-
-Arquivos:
-
-- `backend/app/main.py`
-- `frontend/index.html`
-
-Alterar:
-
-- `Field(ge=0, le=10)` para `Field(ge=0, le=5)`.
-- `max="10"` para `max="5"` no input da nota.
-
-### Separar o backend em varios arquivos
-
-Arquivos novos:
-
-- `backend/app/database.py`
-- `backend/app/models.py`
-- `backend/app/schemas.py`
-- `backend/app/routes/filmes.py`
-- `backend/app/routes/avaliacoes.py`
-
-Como explicar:
-
-> Hoje esta tudo em `main.py` por simplicidade. Separar em arquivos melhora manutencao, mas a logica e a mesma.
-
-## 13. Erros Comuns e Como Resolver
+## 13. Erros comuns
 
 Erro:
 
@@ -866,13 +732,13 @@ dockerDesktopLinuxEngine: O sistema nao pode encontrar o arquivo especificado
 
 Causa:
 
-- Docker Desktop nao esta aberto ou o servico do Docker nao esta rodando.
+- Docker Desktop nao esta aberto.
 
 Solucao:
 
 - Abrir Docker Desktop.
-- Esperar ficar ativo.
-- Testar `docker version` e verificar se aparece `Server`.
+- Esperar iniciar.
+- Rodar `docker version` e conferir se aparece `Server`.
 
 Erro:
 
@@ -882,7 +748,7 @@ port is already allocated
 
 Causa:
 
-- Algum programa ja esta usando porta 80 ou 443.
+- Porta 80 ou 443 ja esta sendo usada.
 
 Solucao:
 
@@ -897,9 +763,9 @@ password authentication failed for user "postgres"
 
 Causa:
 
-- Senha do `.env` mudou depois do volume ja ter sido criado.
+- O `.env` foi alterado depois do volume existir.
 
-Solucao em ambiente de teste:
+Solucao em teste:
 
 ```bash
 docker compose down -v
@@ -912,12 +778,6 @@ Erro:
 404 Not Found em /api/filmes
 ```
 
-Possiveis causas:
-
-- NGINX nao encaminhou corretamente.
-- Backend nao subiu.
-- Rota foi alterada no FastAPI.
-
 Como investigar:
 
 ```bash
@@ -925,121 +785,106 @@ docker compose logs nginx
 docker compose logs fastapi
 ```
 
-Erro:
+## 14. Divisao de estudo para tres integrantes
 
-```text
-ModuleNotFoundError
-```
+Integrante 1: Docker Compose e infraestrutura.
 
-Causa:
+- Explicar `docker-compose.yml`.
+- Explicar `ports`, `expose`, rede e volume.
+- Explicar `.env`.
+- Saber comandos Docker.
 
-- Dependencia faltando no `requirements.txt`.
+Integrante 2: Backend e banco.
 
-Solucao:
+- Explicar FastAPI.
+- Explicar SQLAlchemy.
+- Explicar Pydantic.
+- Explicar CRUD e relacionamento.
+- Mostrar rotas no Swagger.
 
-- Adicionar dependencia.
-- Rodar `docker compose up --build` para reconstruir imagem.
+Integrante 3: NGINX e frontend.
 
-## 14. Checklist de Dominio Individual
+- Explicar proxy reverso.
+- Explicar `nginx/default.conf`.
+- Explicar `index.html`, `styles.css` e `app.js`.
+- Mostrar a tela criando, editando e excluindo registros.
 
-Cada integrante deve conseguir responder:
+Importante:
+
+- Mesmo com divisao, todos precisam saber o fluxo completo em alto nivel.
+- Na entrevista individual, o professor pode perguntar qualquer parte.
+
+## 15. Checklist individual
+
+Antes da entrevista, cada pessoa deve saber responder:
 
 - O que cada container faz.
 - Por que so o NGINX tem `ports`.
 - Como o NGINX encaminha `/api`.
 - Como o FastAPI encontra o PostgreSQL.
-- Onde estao as variaveis de ambiente.
-- Onde esta o volume do banco.
+- Onde ficam as variaveis de ambiente.
+- Para que serve o volume.
 - Onde estao os modelos `Filme` e `Avaliacao`.
 - Onde esta a ForeignKey.
-- Onde a API valida a nota.
+- Onde a API valida `nota` e `ano`.
 - Onde o frontend chama a API.
-- Como criar, editar e excluir registros pela tela.
-- Como testar a API pelo navegador, Swagger ou curl.
-- Como ver logs de erro.
+- Como criar, editar e excluir pela tela.
+- Como testar `http://localhost/api/health`.
+- Como abrir `http://localhost/api/docs`.
+- Como ver logs.
 - Como apagar o volume em ambiente de teste.
 
-## 15. Divisao Recomendada para Estudo em Grupo
+## 16. Respostas curtinhas para decorar
 
-Integrante 1:
-
-- Docker Compose.
-- Rede.
-- Volumes.
-- Variaveis de ambiente.
-- Comandos Docker.
-
-Integrante 2:
-
-- FastAPI.
-- SQLAlchemy.
-- Pydantic.
-- Rotas CRUD.
-- Relacionamento entre tabelas.
-
-Integrante 3:
-
-- NGINX.
-- Frontend.
-- Fetch usando `/api`.
-- Fluxo navegador -> NGINX -> API -> banco.
-
-Mesmo com essa divisao, todos devem saber o fluxo completo em alto nivel.
-
-## 16. Respostas Curtas para Decorar
-
-Por que usamos Docker Compose?
+Por que Docker Compose?
 
 > Para subir varios containers integrados com um unico comando.
 
-Por que usamos NGINX?
+Por que NGINX?
 
-> Para servir o frontend e encaminhar `/api` para o backend.
+> Para servir o frontend e fazer proxy reverso para a API.
 
-Por que usamos PostgreSQL com volume?
+Por que PostgreSQL com volume?
 
-> Para armazenar os dados de forma persistente.
+> Para manter os dados salvos mesmo recriando containers.
 
-Por que usamos variaveis de ambiente?
+Por que variaveis de ambiente?
 
-> Para configurar banco, usuario e senha sem deixar tudo fixo no codigo.
+> Para configurar banco e senha fora do codigo Python.
 
-Por que o backend usa `postgres` como host?
+Por que `postgres` como host?
 
-> Porque `postgres` e o nome do servico dentro da rede Docker.
+> Porque `postgres` e o nome do servico na rede Docker.
 
 Por que nao tem CORS?
 
-> Porque o navegador chama sempre o NGINX no mesmo host, e o NGINX faz o proxy interno.
+> Porque o navegador acessa o NGINX no mesmo host, e o NGINX encaminha internamente.
 
-O que e `healthcheck`?
+O que e healthcheck?
 
-> E um teste que o Docker executa para saber se o container esta saudavel.
-
-O que e `depends_on`?
-
-> Define ordem/dependencia entre servicos. Aqui o FastAPI espera o PostgreSQL estar saudavel.
+> Um teste que o Docker usa para saber se o container esta saudavel.
 
 O que e ForeignKey?
 
-> E uma chave que liga uma tabela a outra. Aqui, `avaliacoes.filme_id` liga avaliacao a filme.
+> Uma chave que liga uma tabela a outra.
 
 O que e cascade?
 
-> E uma regra para apagar registros dependentes. Ao apagar um filme, suas avaliacoes tambem sao apagadas.
+> Uma regra para apagar registros dependentes. Ao apagar um filme, apaga as avaliacoes dele.
 
-## 17. Checklist Final Antes da Apresentacao
+## 17. Checklist final antes da apresentacao
 
 - Docker Desktop aberto.
 - `docker version` mostrando `Client` e `Server`.
-- `.env` com senha igual a matricula de um integrante.
+- `.env` com senha conforme pedido da atividade.
 - `docker compose config` sem erro.
 - `docker compose up --build` funcionando.
+- `docker compose ps` mostrando containers saudaveis.
 - `http://localhost` abrindo o frontend.
 - `http://localhost/api/health` retornando `{"status":"ok"}`.
 - `http://localhost/api/docs` abrindo Swagger.
 - Cadastro de filme funcionando.
 - Cadastro de avaliacao funcionando.
 - Edicao e exclusao funcionando.
-- Professor consegue ver no Compose que so NGINX tem `ports`.
-
+- `docker compose logs` sem erro critico.
+- Todos conseguem explicar o fluxo navegador -> NGINX -> FastAPI -> PostgreSQL.
