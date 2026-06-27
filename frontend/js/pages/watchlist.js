@@ -63,7 +63,7 @@ export async function watchlistPage() {
     const wdIds = new Set();
 
     for (const item of items) {
-      const movie = { ...item.movie, id: item.movie_id };
+      const movie = { ...item, id: item.movie_id, local_id: item.movie_id };
       const card = createMovieCard(movie, {
         inWatchlist: true,
         onWatchlist: async (m, btn) => {

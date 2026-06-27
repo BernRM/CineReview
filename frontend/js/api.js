@@ -56,6 +56,7 @@ export const catalogDiscover = ({ genre_id, year, sort_by, page = 1 } = {}) =>
 
 // Movies
 export const movieReviews = (id) => _get(`/movies/${id}/reviews`);
+export const localMovie   = (id) => _get(`/movies/${id}`);
 export const upsertReview = (id, body) => _put(`/movies/${id}/review`, body);
 export const deleteReview = (id) => _del(`/movies/${id}/review`);
 export const reportReview = (reviewId, body) => _post(`/movies/reviews/${reviewId}/report`, body);
@@ -83,13 +84,17 @@ export const adminUnsuspendUser  = (id) => _patch(`/admin/users/${id}/status`, {
 export const adminPromoteUser    = (id) => _patch(`/admin/users/${id}/role`, { role: 'admin' });
 export const adminMovies         = ({ page = 1, search } = {}) =>
   _get(`/admin/movies${_qs({ page, q: search })}`);
+export const adminUpdateMovie    = (id, body) => _patch(`/admin/movies/${id}`, body);
 export const toggleFeatured      = (id, featured) => _patch(`/admin/movies/${id}/featured`, { featured });
 export const syncMovie           = (tmdbId) => _post(`/admin/movies/import/${tmdbId}`, {});
 export const adminReports        = ({ page = 1, status } = {}) =>
   _get(`/admin/reports${_qs({ page, status })}`);
 export const adminResolveReport  = (id, status) => _patch(`/admin/reports/${id}`, { status });
+export const adminReviews        = ({ page = 1, status = 'hidden' } = {}) =>
+  _get(`/admin/reviews${_qs({ page, status })}`);
 export const adminDeleteReview   = (id) => _del(`/admin/reviews/${id}`);
 export const adminPublishReview  = (id) => _patch(`/admin/reviews/${id}/status`, { status: 'published' });
+export const adminHideReview     = (id) => _patch(`/admin/reviews/${id}/status`, { status: 'hidden' });
 export const adminAudit          = (page = 1) => _get(`/admin/audit${_qs({ page })}`);
 
 function _qs(params) {

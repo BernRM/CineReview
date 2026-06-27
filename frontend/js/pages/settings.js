@@ -83,7 +83,7 @@ function _profileSection() {
   nameInput.id = 'display-name';
   nameInput.className = 'form-input';
   nameInput.maxLength = 100;
-  nameInput.value = user?.display_name || '';
+  nameInput.value = user?.name || '';
   nameGroup.append(nameLbl, nameInput);
 
   const bioGroup = document.createElement('div');
@@ -120,7 +120,7 @@ function _profileSection() {
     submitBtn.textContent = 'Salvando…';
     try {
       const updated = await updateProfile({
-        display_name: nameInput.value.trim() || null,
+        name: nameInput.value.trim() || null,
         bio: bioInput.value.trim() || null,
       });
       setUser({ ...getUser(), ...updated });

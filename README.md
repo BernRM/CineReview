@@ -13,7 +13,7 @@ Sistema de filmes e avaliações com autenticação, TMDB, painel administrativo
 
 ## Sobre o Projeto
 
-O **CineView** é uma aplicação web conteinerizada para descobrir, avaliar e organizar filmes. Integra dados do TMDB (The Movie Database), autenticação por sessão segura (opaque token + cookie HttpOnly + CSRF), RBAC (user/admin) e uma SPA de 15 rotas com design cinema-editorial.
+O **CineView** é uma aplicação web conteinerizada para descobrir, avaliar e organizar filmes. Integra dados do TMDB (The Movie Database), autenticação por sessão segura (opaque token + cookie HttpOnly + CSRF), RBAC (user/admin) e uma SPA de 16 rotas com design cinema-editorial.
 
 **Grupo 7 — Disciplina: Serviços de Redes para Internet — IFES**
 
@@ -34,7 +34,7 @@ O **CineView** é uma aplicação web conteinerizada para descobrir, avaliar e o
 | Hashing | pwdlib (Argon2id) |
 | Integração | TMDB API v3 (httpx + cache TTL) |
 | Frontend | SPA ES Modules (sem framework) |
-| Testes | pytest + SQLite in-memory |
+| Testes | pytest + SQLite in-memory + Playwright |
 | Orquestração | Docker Compose |
 
 ## Arquitetura
@@ -102,6 +102,7 @@ As migrações rodam automaticamente ao subir o container (`alembic upgrade head
 
 - `001_initial_schema` — cria todas as novas tabelas (users, sessions, movies, genres, reviews, watchlist, watched, reports, audit_log)
 - `002_migrate_legacy_data` — migra dados das tabelas `filmes`/`avaliacoes` para `movies`/`reviews` (no-op se não existirem)
+- `003_report_history` — permite histórico de denúncias mantendo bloqueio de duplicatas abertas na API
 
 ## Rotas da API
 
@@ -129,6 +130,7 @@ As migrações rodam automaticamente ao subir o container (`alembic upgrade head
 
 | Método | Rota | Descrição |
 |---|---|---|
+| GET | `/{id}` | Detalhe de filme local |
 | GET | `/{id}/reviews` | Avaliações publicadas |
 | PUT | `/{id}/review` | Criar/atualizar avaliação (autenticado) |
 | DELETE | `/{id}/review` | Remover avaliação (autenticado) |
@@ -150,23 +152,26 @@ As migrações rodam automaticamente ao subir o container (`alembic upgrade head
 | GET | `/dashboard` | Estatísticas + atividade recente |
 | GET/PATCH | `/users` / `/users/{id}/status` | Listar/suspender usuários |
 | PATCH | `/users/{id}/role` | Promover a admin |
-| GET/PATCH | `/movies` / `/movies/{id}/featured` | Listar/destacar filmes |
+| GET/POST/PATCH | `/movies` / `/movies/{id}` | Listar/criar/editar filmes |
+| PATCH | `/movies/{id}/featured` | Destacar filme |
 | POST | `/movies/import/{tmdb_id}` | Importar filme do TMDB |
 | GET/PATCH | `/reports` / `/reports/{id}` | Moderar reportes |
-| PATCH/DELETE | `/reviews/{id}/status` / `/reviews/{id}` | Moderar/excluir avaliações |
+| GET/PATCH/DELETE | `/reviews` / `/reviews/{id}/status` / `/reviews/{id}` | Moderar avaliações |
 
 ## Segurança
 
 - **Senhas**: hash Argon2id via `pwdlib`
-- **Sessão**: token opaco `secrets.token_urlsafe(32)`, somente SHA-256 armazenado no DB
+- **Sessão**: token opaco `secrets.token_urlsafe(32)`, somente HMAC-SHA-256 armazenado no DB
 - **Cookie de sessão**: `HttpOnly; SameSite=Lax; Secure` (configurável)
 - **CSRF**: double-submit cookie pattern (`csrf_token` legível + `X-CSRF-Token` header)
 - **XSS**: frontend usa `textContent`, `createElementNS`, `replaceChildren` — sem `innerHTML` com dados de usuário
 - **RBAC**: roles `user`/`admin`, verificados em cada endpoint protegido
+- **Login**: limite de tentativas por IP/e-mail
+- **NGINX**: CSP, proteção contra framing, MIME sniffing e política de referrer
 
 ## Testes
 
-Os testes rodam **dentro do container** com SQLite in-memory (sem PostgreSQL):
+Os testes backend rodam **dentro do container** com SQLite in-memory (sem PostgreSQL):
 
 ```bash
 docker compose run --rm fastapi pytest
@@ -181,6 +186,22 @@ Cobertura:
 | `test_catalog.py` | Endpoints de catálogo |
 | `test_movies.py` | Reviews, watchlist, watched |
 | `test_admin.py` | RBAC (401/403), CSRF obrigatório, suspend user |
+
+Testes de ponta a ponta exigem Node.js e a aplicação em execução:
+
+```bash
+npm install
+npx playwright install chromium
+npm run typecheck
+docker compose up -d --build
+npm run test:e2e
+```
+
+A suíte E2E valida inicialização da SPA, cadastro, perfil, autorização,
+administração, filme local, watchlist, assistidos, avaliações e layout móvel.
+Ela usa `E2E_ADMIN_EMAIL` e `E2E_ADMIN_PASSWORD`; quando não definidos, assume
+`admin@cineview.local` e `E2E-admin-password-2026`. Use um banco de
+desenvolvimento, pois os fluxos criam usuários e filmes identificados como E2E.
 
 ## Comandos Úteis
 
@@ -197,6 +218,12 @@ docker compose exec postgres psql -U postgres -d cinereview
 # Rodar testes
 docker compose run --rm fastapi pytest
 
+# Validar tipos do backend com Pyright
+npm run typecheck
+
+# Rodar testes no navegador (com a aplicação já em execução)
+npm run test:e2e
+
 # Parar sem apagar dados
 docker compose down
 ```
@@ -212,11 +239,12 @@ docker compose down
 │   ├── alembic.ini
 │   ├── alembic/versions/
 │   │   ├── 001_initial_schema.py
-│   │   └── 002_migrate_legacy_data.py
+│   │   ├── 002_migrate_legacy_data.py
+│   │   └── 003_report_history.py
 │   ├── app/
 │   │   ├── config.py          # Configurações via pydantic-settings
 │   │   ├── database.py        # Engine, SessionLocal, Base
-│   │   ├── main.py            # App FastAPI, lifespan, CORS
+│   │   ├── main.py            # App FastAPI e lifespan
 │   │   ├── dependencies.py    # get_current_user, get_admin_user, require_csrf
 │   │   ├── models/            # SQLAlchemy: user, session, movie, review, library, moderation
 │   │   ├── schemas/           # Pydantic: auth, movie, review, admin
@@ -243,6 +271,9 @@ docker compose down
 ├── nginx/
 │   ├── Dockerfile
 │   └── default.conf
+├── tests/e2e/                 # Fluxos Playwright desktop/mobile
+├── package.json
+├── playwright.config.js
 ├── .env.example
 ├── docker-compose.yml
 └── GUIA_ESTUDO_APRESENTACAO.md

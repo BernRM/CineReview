@@ -373,12 +373,20 @@
 .star-rating input { position: absolute; opacity: 0; width: 0; }
 .star {
   font-size: 1.4rem;
-  color: var(--surface-hi);
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    var(--amber) 0 var(--star-fill, 0%),
+    var(--surface-hi) var(--star-fill, 0%) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
   transition: color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
   cursor: pointer;
   line-height: 1;
+  border: 0;
+  padding: 0.15rem;
 }
-.star:hover, .star.filled { color: var(--amber); }
 .star:hover { transform: scale(1.15); }
 
 /* ── PANEL / CARD CONTAINER ────────────────────── */

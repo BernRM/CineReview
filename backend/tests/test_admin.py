@@ -50,6 +50,17 @@ def test_admin_movies_list(client, admin_user):
     assert "items" in data
 
 
+def test_admin_can_create_local_movie(client, admin_user):
+    csrf = _login_as(client, "admin@example.com", "adminpass123")
+    response = client.post(
+        "/api/admin/movies",
+        json={"title": "Filme local", "overview": "Criado para teste."},
+        headers={"X-CSRF-Token": csrf or ""},
+    )
+    assert response.status_code == 201
+    assert response.json()["title"] == "Filme local"
+
+
 def test_suspend_user_requires_csrf(client, admin_user, regular_user):
     _login_as(client, "admin@example.com", "adminpass123")
     resp = client.patch(f"/api/admin/users/{regular_user.id}/status", json={"status": "suspended"})

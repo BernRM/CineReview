@@ -90,6 +90,20 @@ def test_delete_review(client, db):
     assert resp.status_code == 204
 
 
+def test_deleted_review_can_be_created_again(client, db):
+    movie = _create_movie(db)
+    csrf = _register_and_login(client, "restoreuser", "restore@test.com")
+    headers = {"X-CSRF-Token": csrf or ""}
+
+    client.put(f"/api/movies/{movie.id}/review", json={"rating": 6}, headers=headers)
+    client.delete(f"/api/movies/{movie.id}/review", headers=headers)
+    resp = client.put(f"/api/movies/{movie.id}/review", json={"rating": 9}, headers=headers)
+
+    assert resp.status_code == 200
+    assert resp.json()["rating"] == 9
+    assert resp.json()["status"] == "published"
+
+
 def test_watchlist_operations(client, db):
     movie = _create_movie(db)
     csrf = _register_and_login(client, "wluser", "wl@test.com")

@@ -1,5 +1,5 @@
 """Upsert TMDB movie data into local movies table."""
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy.orm import Session as DbSession
 
@@ -51,13 +51,12 @@ def upsert_movie_from_data(db: DbSession, parsed: dict) -> Movie:
     movie.tmdb_synced_at = now
 
     release = parsed.get("release_date")
-    if release and isinstance(release, str) and release:
-        from datetime import date
+    if isinstance(release, str) and release:
         try:
             movie.release_date = date.fromisoformat(release)
         except ValueError:
             pass
-    elif hasattr(release, "year"):
+    elif isinstance(release, date):
         movie.release_date = release
 
     runtime = parsed.get("runtime_minutes") or parsed.get("runtime")

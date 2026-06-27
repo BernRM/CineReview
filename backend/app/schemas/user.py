@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class UpdateProfileRequest(BaseModel):
@@ -6,12 +6,15 @@ class UpdateProfileRequest(BaseModel):
     bio: str | None = Field(default=None, max_length=500)
     avatar_url: str | None = None
 
-    def validate_avatar(self) -> None:
-        if self.avatar_url is not None:
-            url = self.avatar_url.strip()
-            if url and not (url.startswith("http://") or url.startswith("https://")):
-                raise ValueError("avatar_url deve ser http ou https")
-            self.avatar_url = url or None
+    @field_validator("avatar_url")
+    @classmethod
+    def validate_avatar(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        url = value.strip()
+        if url and not (url.startswith("http://") or url.startswith("https://")):
+            raise ValueError("avatar_url deve ser http ou https")
+        return url or None
 
 
 class PublicProfileResponse(BaseModel):

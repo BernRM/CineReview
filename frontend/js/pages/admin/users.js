@@ -122,12 +122,8 @@ export async function adminUsersPage() {
               confirmDialog(`Suspender @${user.username}?`, async () => {
                 try {
                   await adminSuspendUser(user.id);
-                  user.status = 'suspended';
-                  statusBadge.textContent = 'Suspenso';
-                  statusBadge.className = 'badge badge-danger';
-                  suspBtn.style.display = 'none';
-                  unsuspBtn.style.display = '';
                   toastOk(`@${user.username} suspenso.`);
+                  await load();
                 } catch (e) { toastError(e.message); }
               }, { title: 'Confirmar suspensão', danger: true, confirmLabel: 'Suspender' });
             });
@@ -141,15 +137,8 @@ export async function adminUsersPage() {
           unsuspBtn.addEventListener('click', async () => {
             try {
               await adminUnsuspendUser(user.id);
-              user.status = 'active';
-              statusBadge.textContent = 'Ativo';
-              statusBadge.className = 'badge badge-success';
-              unsuspBtn.style.display = 'none';
-              const suspBtn2 = document.createElement('button');
-              suspBtn2.className = 'btn btn-danger btn-sm';
-              suspBtn2.textContent = 'Suspender';
-              tdActs.insertBefore(suspBtn2, unsuspBtn);
               toastOk(`@${user.username} reativado.`);
+              await load();
             } catch (e) { toastError(e.message); }
           });
           tdActs.appendChild(unsuspBtn);
@@ -162,10 +151,8 @@ export async function adminUsersPage() {
               confirmDialog(`Promover @${user.username} a admin?`, async () => {
                 try {
                   await adminPromoteUser(user.id);
-                  roleBadge.textContent = 'admin';
-                  roleBadge.className = 'badge badge-amber';
-                  promBtn.remove();
                   toastOk(`@${user.username} é admin agora.`);
+                  await load();
                 } catch (e) { toastError(e.message); }
               }, { title: 'Promover a admin', confirmLabel: 'Promover' });
             });

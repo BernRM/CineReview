@@ -1,18 +1,18 @@
 import {
-  catalogMovie, movieReviews, upsertReview, deleteReview,
+  catalogMovie, localMovie, movieReviews, upsertReview, deleteReview,
   addWatchlist, removeWatchlist, markWatched, unmarkWatched,
-  myWatchlist, myWatched, posterUrl, backdropUrl, safeUrl,
+  myWatchlist, myWatched, posterUrl, backdropUrl,
 } from '../api.js';
 import { isLoggedIn, getUser } from '../state.js';
 import { toastOk, toastError } from '../components/toast.js';
 import { createStarRating, getStarValue } from '../components/starRating.js';
 import { confirmDialog } from '../components/modal.js';
-import { openModal, closeModal } from '../components/modal.js';
+import { openModal } from '../components/modal.js';
 import { navigate } from '../router.js';
 import { safeUrl as _safeUrl } from '../utils/escape.js';
 import { lazyImages } from '../utils/debounce.js';
 
-export async function moviePage({ tmdb_id }) {
+export async function moviePage({ tmdb_id, local_id }) {
   const root = document.createElement('div');
 
   // Loading state
@@ -24,7 +24,9 @@ export async function moviePage({ tmdb_id }) {
   root.appendChild(loadMsg);
 
   try {
-    const data = await catalogMovie(tmdb_id);
+    const data = local_id
+      ? { ...(await localMovie(local_id)), local_id: Number(local_id) }
+      : await catalogMovie(tmdb_id);
     const [reviewsData, wlData, wdData] = await Promise.all([
       data?.local_id ? movieReviews(data.local_id).catch(() => []) : Promise.resolve([]),
       isLoggedIn() ? myWatchlist().catch(() => []) : Promise.resolve([]),
@@ -487,23 +489,32 @@ function _openReviewModal(movieId, reviewsSection, existing) {
     confirmLabel: 'Salvar',
     onConfirm: async () => {
       const ratingVal = getStarValue(stars);
-      if (!ratingVal) { errEl.textContent = 'Selecione uma nota.'; return openModal({ title: existing ? 'Editar avaliação' : 'Avaliar filme', body: form, confirmLabel: 'Salvar', onConfirm: arguments.callee }); }
+      if (!ratingVal) {
+        errEl.textContent = 'Selecione uma nota.';
+        return false;
+      }
       const bodyVal = bodyInput.value.trim();
-      if (bodyVal && bodyVal.length < 10) { errEl.textContent = 'Crítica deve ter ao menos 10 caracteres.'; return; }
+      if (bodyVal && bodyVal.length < 10) {
+        errEl.textContent = 'Crítica deve ter ao menos 10 caracteres.';
+        return false;
+      }
       try {
-        const saved = await upsertReview(movieId, {
+        await upsertReview(movieId, {
           rating: ratingVal,
           title: titleInput.value.trim() || null,
           body: bodyVal || null,
           contains_spoiler: spoilerCheck.checked,
         });
         toastOk('Avaliação salva!');
-        closeModal();
         if (reviewsSection) {
           const refreshed = await movieReviews(movieId).catch(() => []);
           _renderReviews(reviewsSection, refreshed);
         }
-      } catch (e) { errEl.textContent = e.message; }
+        return true;
+      } catch (e) {
+        errEl.textContent = e.message;
+        return false;
+      }
     },
   });
 }

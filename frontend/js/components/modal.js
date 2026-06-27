@@ -59,7 +59,21 @@ export function openModal({ title, body, onConfirm, confirmLabel = 'Confirmar', 
     const confirmBtn = document.createElement('button');
     confirmBtn.className = `btn ${danger ? 'btn-danger' : 'btn-primary'}`;
     confirmBtn.textContent = confirmLabel;
-    confirmBtn.addEventListener('click', () => { closeModal(); onConfirm(); });
+    confirmBtn.addEventListener('click', async () => {
+      if (confirmBtn.disabled) return;
+      confirmBtn.disabled = true;
+      const originalLabel = confirmBtn.textContent;
+      confirmBtn.textContent = 'Aguarde…';
+      try {
+        const shouldClose = await onConfirm();
+        if (shouldClose !== false) closeModal();
+      } finally {
+        if (_current === backdrop) {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = originalLabel;
+        }
+      }
+    });
     footer.appendChild(confirmBtn);
   }
 

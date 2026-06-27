@@ -11,45 +11,48 @@
 export function createStarRating({ value = 0, readonly = false, onChange } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'star-rating';
-  wrap.setAttribute('role', readonly ? 'img' : 'group');
+  wrap.setAttribute('role', readonly ? 'img' : 'radiogroup');
   wrap.setAttribute('aria-label', `Nota: ${value ? value.toFixed(1) : 'sem nota'}`);
 
   const stars = [];
-  for (let i = 1; i <= 10; i++) {
-    const isHalf = i % 2 !== 0;
-    const starValue = i; // 1–10 scale
+  const render = (numericValue) => {
+    const normalized = Math.max(0, Math.min(10, Number(numericValue) || 0));
+    wrap.dataset.value = String(normalized);
+    wrap.setAttribute(
+      'aria-label',
+      normalized ? `Nota: ${(normalized / 2).toFixed(1)} de 5 estrelas` : 'Sem nota',
+    );
+    stars.forEach((star, index) => {
+      const lower = index * 2;
+      const fill = normalized >= lower + 2 ? 100 : normalized === lower + 1 ? 50 : 0;
+      star.style.setProperty('--star-fill', `${fill}%`);
+    });
+  };
 
-    const span = document.createElement('span');
-    span.className = 'star';
-    span.setAttribute('aria-hidden', 'true');
-    // Half stars use ½ glyph, full stars use full glyph
-    span.textContent = isHalf ? '½' : '★';
-    span.style.display = isHalf ? 'inline' : 'inline';
+  for (let i = 1; i <= 5; i++) {
+    const star = document.createElement(readonly ? 'span' : 'button');
+    star.className = 'star';
+    star.textContent = '★';
+    stars.push(star);
 
-    if (value && starValue <= value) span.classList.add('filled');
-
-    if (!readonly) {
-      span.style.cursor = 'pointer';
-      span.setAttribute('title', `${starValue % 2 === 0 ? starValue / 2 : starValue / 2} estrelas`);
-      span.addEventListener('click', () => {
-        onChange?.(starValue);
-        wrap.setAttribute('aria-label', `Nota: ${starValue}`);
-        stars.forEach((s, idx) => s.classList.toggle('filled', idx < starValue));
-      });
-      span.addEventListener('mouseover', () => {
-        stars.forEach((s, idx) => s.classList.toggle('filled', idx < starValue));
-      });
-      span.addEventListener('mouseout', () => {
-        const current = parseInt(wrap.dataset.value || '0', 10);
-        stars.forEach((s, idx) => s.classList.toggle('filled', idx < current));
+    if (readonly) {
+      star.setAttribute('aria-hidden', 'true');
+    } else {
+      star.type = 'button';
+      star.setAttribute('role', 'radio');
+      star.setAttribute('aria-label', `${i} estrelas`);
+      star.addEventListener('click', (event) => {
+        const rect = star.getBoundingClientRect();
+        const isLeftHalf = event.clientX - rect.left < rect.width / 2;
+        const next = i * 2 - (isLeftHalf ? 1 : 0);
+        render(next);
+        onChange?.(next);
       });
     }
-
-    stars.push(span);
-    wrap.appendChild(span);
+    wrap.appendChild(star);
   }
 
-  wrap.dataset.value = String(value || 0);
+  render(value);
 
   // Keyboard support
   if (!readonly) {
@@ -61,10 +64,8 @@ export function createStarRating({ value = 0, readonly = false, onChange } = {})
       if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = Math.max(0, cur - 1);
       if (next !== cur) {
         e.preventDefault();
-        wrap.dataset.value = String(next);
+        render(next);
         onChange?.(next);
-        stars.forEach((s, idx) => s.classList.toggle('filled', idx < next));
-        wrap.setAttribute('aria-label', `Nota: ${next}`);
       }
     });
   }

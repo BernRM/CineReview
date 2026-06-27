@@ -125,7 +125,8 @@ export function createMovieCard(movie, opts = {}) {
   card.append(posterWrap, body);
 
   // Navigate on click/Enter
-  const target = movie.tmdb_id ? `/filme/${movie.tmdb_id}` : (movie.local_id ? `/filme/local/${movie.local_id}` : null);
+  const localId = movie.local_id || (!movie.tmdb_id ? movie.id : null);
+  const target = movie.tmdb_id ? `/filme/${movie.tmdb_id}` : (localId ? `/filme/local/${localId}` : null);
   if (target) {
     card.style.cursor = 'pointer';
     card.addEventListener('click', () => navigate(target));

@@ -1,8 +1,11 @@
-import { adminMovies, toggleFeatured, syncMovie } from '../../api.js';
+import {
+  adminMovies, adminUpdateMovie, catalogSearch,
+  toggleFeatured, syncMovie,
+} from '../../api.js';
 import { isAdmin } from '../../state.js';
 import { navigate } from '../../router.js';
 import { toastOk, toastError } from '../../components/toast.js';
-import { openModal, closeModal } from '../../components/modal.js';
+import { openModal } from '../../components/modal.js';
 import { _renderAdminNav } from './dashboard.js';
 import { debounce } from '../../utils/debounce.js';
 
@@ -24,7 +27,7 @@ export async function adminMoviesPage() {
   const importBtn = document.createElement('button');
   importBtn.className = 'btn btn-primary btn-sm';
   importBtn.textContent = '+ Importar do TMDB';
-  importBtn.addEventListener('click', _openImportModal);
+  importBtn.addEventListener('click', () => _openImportModal(load));
   header.append(h1, importBtn);
   main.appendChild(header);
 
@@ -89,7 +92,7 @@ export async function adminMoviesPage() {
         const tr = document.createElement('tr');
         const tdTitle = document.createElement('td');
         const link = document.createElement('a');
-        link.href = movie.tmdb_id ? `/filme/${movie.tmdb_id}` : '#';
+        link.href = movie.tmdb_id ? `/filme/${movie.tmdb_id}` : `/filme/local/${movie.id}`;
         link.textContent = movie.title;
         tdTitle.appendChild(link);
         const tdYear = document.createElement('td');
@@ -115,7 +118,11 @@ export async function adminMoviesPage() {
             toastOk(movie.is_featured ? 'Destaque ativado.' : 'Destaque removido.');
           } catch (e) { toastError(e.message); }
         });
-        tdActs.appendChild(featBtn);
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-ghost btn-sm';
+        editBtn.textContent = 'Editar';
+        editBtn.addEventListener('click', () => _openEditModal(movie, load));
+        tdActs.append(featBtn, editBtn);
         tr.append(tdTitle, tdYear, tdReviews, tdFeat, tdActs);
         tbody.appendChild(tr);
       }
@@ -160,7 +167,7 @@ export async function adminMoviesPage() {
   return root;
 }
 
-function _openImportModal() {
+function _openImportModal(onImported) {
   const form = document.createElement('div');
   form.className = 'stack';
 
@@ -168,32 +175,127 @@ function _openImportModal() {
   group.className = 'form-group';
   const lbl = document.createElement('label');
   lbl.className = 'form-label';
-  lbl.textContent = 'ID TMDB do filme';
+  lbl.textContent = 'Buscar filme no TMDB';
   const input = document.createElement('input');
-  input.type = 'number';
+  input.type = 'search';
   input.className = 'form-input';
-  input.placeholder = 'Ex.: 27205';
-  input.min = '1';
+  input.placeholder = 'Digite pelo menos 2 caracteres';
   group.append(lbl, input);
 
+  const results = document.createElement('div');
+  results.className = 'stack';
   const errEl = document.createElement('p');
   errEl.className = 'form-error';
   errEl.setAttribute('aria-live', 'polite');
 
-  form.append(group, errEl);
+  form.append(group, results, errEl);
+  let selectedMovie = null;
+
+  const search = debounce(async (query) => {
+    selectedMovie = null;
+    results.replaceChildren();
+    errEl.textContent = '';
+    if (query.trim().length < 2) return;
+    try {
+      const data = await catalogSearch(query.trim(), 1);
+      for (const movie of (data.results || []).slice(0, 6)) {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'btn btn-ghost btn-block';
+        const year = movie.release_date ? ` (${movie.release_date.slice(0, 4)})` : '';
+        option.textContent = `${movie.title}${year}`;
+        option.addEventListener('click', () => {
+          selectedMovie = movie;
+          results.querySelectorAll('button').forEach(btn => btn.classList.remove('btn-primary'));
+          option.classList.add('btn-primary');
+        });
+        results.appendChild(option);
+      }
+      if (!results.children.length) errEl.textContent = 'Nenhum resultado encontrado.';
+    } catch (error) {
+      errEl.textContent = error.message;
+    }
+  }, 350);
+  input.addEventListener('input', () => search(input.value));
 
   openModal({
     title: 'Importar filme do TMDB',
     body: form,
     confirmLabel: 'Importar',
     onConfirm: async () => {
-      const tmdbId = parseInt(input.value, 10);
-      if (!tmdbId || tmdbId < 1) { errEl.textContent = 'Informe um ID TMDB válido.'; return; }
+      if (!selectedMovie) {
+        errEl.textContent = 'Selecione um filme nos resultados.';
+        return false;
+      }
       try {
-        const movie = await syncMovie(tmdbId);
+        const movie = await syncMovie(selectedMovie.tmdb_id);
         toastOk(`"${movie.title}" importado com sucesso!`);
-        closeModal();
-      } catch (e) { errEl.textContent = e.message; }
+        await onImported?.();
+        return true;
+      } catch (e) {
+        errEl.textContent = e.message;
+        return false;
+      }
+    },
+  });
+}
+
+function _openEditModal(movie, onSaved) {
+  const form = document.createElement('div');
+  form.className = 'stack';
+
+  const titleLabel = document.createElement('label');
+  titleLabel.className = 'form-label';
+  titleLabel.textContent = 'Título';
+  const titleInput = document.createElement('input');
+  titleInput.className = 'form-input';
+  titleInput.maxLength = 300;
+  titleInput.value = movie.title || '';
+
+  const overviewLabel = document.createElement('label');
+  overviewLabel.className = 'form-label';
+  overviewLabel.textContent = 'Sinopse';
+  const overviewInput = document.createElement('textarea');
+  overviewInput.className = 'form-textarea';
+  overviewInput.rows = 5;
+  overviewInput.value = movie.overview || '';
+
+  const activeLabel = document.createElement('label');
+  activeLabel.className = 'cluster';
+  const activeInput = document.createElement('input');
+  activeInput.type = 'checkbox';
+  activeInput.checked = movie.is_active;
+  const activeText = document.createElement('span');
+  activeText.textContent = 'Filme ativo no catálogo';
+  activeLabel.append(activeInput, activeText);
+
+  const error = document.createElement('p');
+  error.className = 'form-error';
+  form.append(titleLabel, titleInput, overviewLabel, overviewInput, activeLabel, error);
+
+  openModal({
+    title: 'Editar filme',
+    body: form,
+    confirmLabel: 'Salvar',
+    onConfirm: async () => {
+      const title = titleInput.value.trim();
+      if (!title) {
+        error.textContent = 'Informe o título.';
+        return false;
+      }
+      try {
+        await adminUpdateMovie(movie.id, {
+          title,
+          overview: overviewInput.value.trim() || null,
+          is_active: activeInput.checked,
+        });
+        toastOk('Filme atualizado.');
+        await onSaved?.();
+        return true;
+      } catch (e) {
+        error.textContent = e.message;
+        return false;
+      }
     },
   });
 }

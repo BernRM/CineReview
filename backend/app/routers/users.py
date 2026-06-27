@@ -42,7 +42,6 @@ def update_profile(
     user: User = Depends(get_active_user),
     _csrf=Depends(require_csrf),
 ):
-    body.validate_avatar()
     if body.name is not None:
         user.name = body.name
     if body.bio is not None:
@@ -181,13 +180,16 @@ def my_reviews(user: User = Depends(get_active_user)):
 @router.get("/api/users/{username}")
 def public_profile(username: str, db: DbSession = Depends(get_db)):
     user = db.query(User).filter(User.username == username).first()
-    if not user:
+    if not user or user.status.value != "active":
         raise HTTPException(404, "Usuário não encontrado.")
 
-    review_count = db.query(Review).filter(
+    reviews_query = db.query(Review).filter(
         Review.user_id == user.id, Review.status == ReviewStatus.published
-    ).count()
+    )
+    review_count = reviews_query.count()
     watched_count = db.query(WatchedMovie).filter(WatchedMovie.user_id == user.id).count()
+    watchlist_count = db.query(WatchlistItem).filter(WatchlistItem.user_id == user.id).count()
+    recent_reviews = reviews_query.order_by(Review.created_at.desc()).limit(5).all()
 
     return {
         "id": user.id,
@@ -197,4 +199,19 @@ def public_profile(username: str, db: DbSession = Depends(get_db)):
         "bio": user.bio,
         "review_count": review_count,
         "watched_count": watched_count,
+        "watchlist_count": watchlist_count,
+        "recent_reviews": [
+            {
+                "id": review.id,
+                "movie_id": review.movie_id,
+                "movie_title": review.movie.title,
+                "movie_tmdb_id": review.movie.tmdb_id,
+                "rating": float(review.rating),
+                "title": review.title,
+                "body": review.body,
+                "contains_spoiler": review.contains_spoiler,
+                "created_at": review.created_at,
+            }
+            for review in recent_reviews
+        ],
     }

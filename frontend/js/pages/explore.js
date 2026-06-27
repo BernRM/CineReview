@@ -38,8 +38,8 @@ export async function explorePage() {
   yearDefault.value = '';
   yearDefault.textContent = 'Qualquer ano';
   yearSelect.appendChild(yearDefault);
-  const currentYear = new Date().getFullYear();
-  for (let y = currentYear; y >= 1970; y--) {
+  const maximumYear = new Date().getFullYear();
+  for (let y = maximumYear; y >= 1970; y--) {
     const opt = document.createElement('option');
     opt.value = String(y);
     opt.textContent = String(y);
@@ -178,13 +178,23 @@ function _appendSkeletons(container, n) {
 async function _toggleWl(movie, btn, wlIds) {
   if (!isLoggedIn()) { navigate('/login'); return; }
   try {
-    if (wlIds.has(movie.id)) {
-      await removeWatchlist(movie.id); wlIds.delete(movie.id);
+    const id = await _localMovieId(movie);
+    if (!id) throw new Error('Não foi possível preparar este filme.');
+    if (wlIds.has(id)) {
+      await removeWatchlist(id); wlIds.delete(id);
       btn.textContent = '+ Lista'; btn.classList.remove('active'); btn.setAttribute('aria-pressed', 'false');
     } else {
-      await addWatchlist(movie.id); wlIds.add(movie.id);
+      await addWatchlist(id); wlIds.add(id);
       btn.textContent = '✓ Lista'; btn.classList.add('active'); btn.setAttribute('aria-pressed', 'true');
       toastOk('Adicionado à lista.');
     }
   } catch (e) { toastError(e.message); }
+}
+
+async function _localMovieId(movie) {
+  if (movie.id) return movie.id;
+  if (!movie.tmdb_id) return null;
+  const { catalogMovie } = await import('../api.js');
+  const detail = await catalogMovie(movie.tmdb_id);
+  return detail?.local_id || null;
 }

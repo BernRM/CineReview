@@ -11,7 +11,7 @@ from app.models.movie import Movie
 from app.models.review import Review, ReviewStatus
 from app.models.user import User, UserRole, UserStatus
 from app.schemas.admin import (
-    DashboardStats, MovieFeaturedUpdate, MovieUpdateAdmin,
+    DashboardStats, MovieCreateAdmin, MovieFeaturedUpdate, MovieUpdateAdmin,
     ReportStatusUpdate, ReviewStatusUpdate, UserRoleUpdate, UserStatusUpdate,
 )
 from app.security.sessions import revoke_all_user_sessions
@@ -43,6 +43,13 @@ def _paginate(total: int, page: int) -> dict:
     return {"total": total, "page": page, "total_pages": max(1, math.ceil(total / PAGE_SIZE))}
 
 
+def _username_for(db: DbSession, user_id: int | None) -> str | None:
+    if user_id is None:
+        return None
+    user = db.get(User, user_id)
+    return user.username if user else None
+
+
 @router.get("/dashboard", response_model=DashboardStats)
 def dashboard(db: DbSession = Depends(get_db), admin: User = Depends(get_admin_user)):
     from app.models.moderation import AdminAuditLog
@@ -64,7 +71,7 @@ def dashboard(db: DbSession = Depends(get_db), admin: User = Depends(get_admin_u
                 "action": log.action,
                 "target_type": log.target_type,
                 "target_id": log.target_id,
-                "admin_username": db.get(User, log.admin_user_id).username if log.admin_user_id else None,
+                "admin_username": _username_for(db, log.admin_user_id),
                 "created_at": log.created_at,
             }
             for log in recent
@@ -87,7 +94,10 @@ def list_users(
         like = f"%{q}%"
         query = query.filter((User.username.ilike(like)) | (User.email.ilike(like)))
     if status:
-        query = query.filter(User.status == UserStatus(status))
+        try:
+            query = query.filter(User.status == UserStatus(status))
+        except ValueError:
+            raise HTTPException(400, "Status de usuário inválido.")
     total = query.count()
     users = query.order_by(User.id).offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE).all()
     return {
@@ -154,6 +164,30 @@ def update_user_role(
 
 # ---------- Movies ----------
 
+@router.post("/movies", status_code=201)
+def create_local_movie(
+    body: MovieCreateAdmin,
+    db: DbSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+    _csrf=Depends(require_csrf),
+):
+    now = _now()
+    movie = Movie(
+        title=body.title,
+        overview=body.overview,
+        is_active=True,
+        is_featured=False,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(movie)
+    db.flush()
+    _audit(db, admin, "create_local_movie", "movie", movie.id)
+    db.commit()
+    db.refresh(movie)
+    return {"id": movie.id, "title": movie.title, "tmdb_id": None}
+
+
 @router.get("/movies")
 def list_movies(
     page: int = Query(default=1, ge=1),
@@ -173,6 +207,7 @@ def list_movies(
                 "id": m.id,
                 "tmdb_id": m.tmdb_id,
                 "title": m.title,
+                "overview": m.overview,
                 "is_featured": m.is_featured,
                 "is_active": m.is_active,
                 "release_date": m.release_date,
@@ -263,7 +298,7 @@ def list_reports(
                 "id": r.id,
                 "review_id": r.review_id,
                 "reporter_user_id": r.reporter_user_id,
-                "reporter_username": db.get(User, r.reporter_user_id).username if r.reporter_user_id else None,
+                "reporter_username": _username_for(db, r.reporter_user_id),
                 "reason": r.reason,
                 "details": r.details,
                 "status": r.status.value,
@@ -296,6 +331,52 @@ def update_report(
 
 
 # ---------- Reviews ----------
+
+@router.get("/reviews")
+def list_moderated_reviews(
+    page: int = Query(default=1, ge=1),
+    status: str = Query(default="hidden"),
+    db: DbSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    try:
+        review_status = ReviewStatus(status)
+    except ValueError:
+        raise HTTPException(400, "Status de avaliação inválido.")
+
+    query = db.query(Review).filter(Review.status == review_status)
+    total = query.count()
+    reviews = (
+        query.order_by(Review.updated_at.desc())
+        .offset((page - 1) * PAGE_SIZE)
+        .limit(PAGE_SIZE)
+        .all()
+    )
+    return {
+        **_paginate(total, page),
+        "items": [
+            {
+                **_review_admin_item(review),
+            }
+            for review in reviews
+        ],
+    }
+
+
+def _review_admin_item(review: Review) -> dict:
+    return {
+        "id": review.id,
+        "movie_id": review.movie_id,
+        "movie_title": review.movie.title,
+        "author_name": review.user.name if review.user else review.legacy_reviewer_name,
+        "rating": float(review.rating),
+        "title": review.title,
+        "body": review.body,
+        "contains_spoiler": review.contains_spoiler,
+        "status": review.status.value,
+        "updated_at": review.updated_at,
+    }
+
 
 @router.patch("/reviews/{review_id}/status")
 def moderate_review(
@@ -355,7 +436,7 @@ def audit_log(
             {
                 "id": log.id,
                 "admin_user_id": log.admin_user_id,
-                "admin_username": db.get(User, log.admin_user_id).username if log.admin_user_id else None,
+                "admin_username": _username_for(db, log.admin_user_id),
                 "action": log.action,
                 "target_type": log.target_type,
                 "target_id": log.target_id,

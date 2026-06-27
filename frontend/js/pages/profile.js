@@ -29,7 +29,10 @@ export async function profilePage({ username }) {
     const profileInfo = document.createElement('div');
     profileInfo.className = 'profile-info';
     const nameEl = document.createElement('h1');
-    nameEl.textContent = data.username;
+    nameEl.textContent = data.name || data.username;
+    const usernameEl = document.createElement('p');
+    usernameEl.className = 'text-muted';
+    usernameEl.textContent = `@${data.username}`;
     const statWrap = document.createElement('div');
     statWrap.className = 'profile-stats cluster';
     const stats = [
@@ -48,7 +51,13 @@ export async function profilePage({ username }) {
       stat.append(val, lbl);
       statWrap.appendChild(stat);
     }
-    profileInfo.append(nameEl, statWrap);
+    profileInfo.append(nameEl, usernameEl);
+    if (data.bio) {
+      const bio = document.createElement('p');
+      bio.textContent = data.bio;
+      profileInfo.appendChild(bio);
+    }
+    profileInfo.appendChild(statWrap);
     profileHeader.append(avatar, profileInfo);
     root.appendChild(profileHeader);
 

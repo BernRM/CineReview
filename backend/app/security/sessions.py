@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -9,7 +10,8 @@ from app.models.session import Session
 
 
 def _sha256(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
+    secret = get_settings().session_secret.encode()
+    return hmac.new(secret, token.encode(), hashlib.sha256).hexdigest()
 
 
 def create_session(db: DbSession, user_id: int) -> tuple[str, str]:

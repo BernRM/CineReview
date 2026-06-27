@@ -26,6 +26,7 @@ route('/',               () => homePage());
 route('/explorar',       () => explorePage());
 route('/buscar',         (_, params) => searchPage(params));
 route('/filme/:tmdb_id', (p) => moviePage(p));
+route('/filme/local/:local_id', (p) => moviePage(p));
 route('/login',          () => loginPage());
 route('/cadastro',       () => registerPage());
 route('/perfil/:username', (p) => profilePage(p));

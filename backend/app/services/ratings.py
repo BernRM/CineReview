@@ -11,17 +11,23 @@ def compute_community_rating(db: DbSession, movie_id: int) -> tuple[float | None
         .filter(Review.movie_id == movie_id, Review.status == ReviewStatus.published)
         .first()
     )
+    if result is None:
+        return None, 0
     avg, count = result
     return (float(avg) if avg is not None else None), (count or 0)
 
 
-def get_user_review(db: DbSession, user_id: int, movie_id: int) -> Review | None:
-    return (
-        db.query(Review)
-        .filter(
-            Review.user_id == user_id,
-            Review.movie_id == movie_id,
-            Review.status != ReviewStatus.deleted,
-        )
-        .first()
+def get_user_review(
+    db: DbSession,
+    user_id: int,
+    movie_id: int,
+    *,
+    include_deleted: bool = False,
+) -> Review | None:
+    query = db.query(Review).filter(
+        Review.user_id == user_id,
+        Review.movie_id == movie_id,
     )
+    if not include_deleted:
+        query = query.filter(Review.status != ReviewStatus.deleted)
+    return query.first()

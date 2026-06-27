@@ -17,7 +17,43 @@ def test_search_requires_query(client):
     assert resp.status_code == 422
 
 
-def test_search_returns_results_shape(client):
+def test_search_falls_back_to_local_movies(client, db, monkeypatch):
+    from app.models.movie import Movie
+    from app.services import tmdb
+
+    monkeypatch.setattr(tmdb, "search_movies", lambda query, page=1: None)
+    db.add(Movie(title="Cinema Local", overview="Fallback local", is_active=True))
+    db.commit()
+
+    response = client.get("/api/catalog/search?q=cinema")
+    assert response.status_code == 200
+    assert response.json()["source"] == "local"
+    assert response.json()["results"][0]["title"] == "Cinema Local"
+
+
+def test_search_returns_results_shape(client, monkeypatch):
+    from app.services import tmdb
+
+    monkeypatch.setattr(
+        tmdb,
+        "search_movies",
+        lambda query, page=1: {
+            "page": page,
+            "total_pages": 1,
+            "total_results": 1,
+            "results": [
+                {
+                    "id": 27205,
+                    "title": "A Origem",
+                    "poster_path": None,
+                    "release_date": "2010-07-15",
+                    "vote_average": 8.4,
+                    "overview": "Teste",
+                    "genre_ids": [28],
+                }
+            ],
+        },
+    )
     resp = client.get("/api/catalog/search?q=inception")
     assert resp.status_code == 200
     data = resp.json()

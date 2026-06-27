@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
@@ -14,7 +15,11 @@ from app.security.passwords import hash_password
 
 SQLITE_URL = "sqlite:///:memory:"
 
-engine = create_engine(SQLITE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(
+    SQLITE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
 TestingSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -29,15 +34,16 @@ def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 
 
-@pytest.fixture(scope="session", autouse=True)
-def create_tables():
+@pytest.fixture(autouse=True)
+def reset_database():
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture()
-def db():
+def db(reset_database):
     session = TestingSession()
     yield session
     session.rollback()
@@ -45,7 +51,7 @@ def db():
 
 
 @pytest.fixture()
-def client():
+def client(reset_database):
     return TestClient(app, raise_server_exceptions=True)
 
 
@@ -62,9 +68,7 @@ def regular_user(db):
     db.add(u)
     db.commit()
     db.refresh(u)
-    yield u
-    db.delete(u)
-    db.commit()
+    return u
 
 
 @pytest.fixture()
@@ -80,6 +84,4 @@ def admin_user(db):
     db.add(u)
     db.commit()
     db.refresh(u)
-    yield u
-    db.delete(u)
-    db.commit()
+    return u

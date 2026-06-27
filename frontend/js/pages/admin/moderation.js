@@ -1,4 +1,7 @@
-import { adminReports, adminResolveReport, adminDeleteReview, adminPublishReview } from '../../api.js';
+import {
+  adminReports, adminResolveReport, adminDeleteReview,
+  adminPublishReview, adminHideReview, adminReviews,
+} from '../../api.js';
 import { isAdmin } from '../../state.js';
 import { navigate } from '../../router.js';
 import { toastOk, toastError } from '../../components/toast.js';
@@ -30,7 +33,7 @@ export async function adminModerationPage() {
   tabReports.setAttribute('aria-selected', 'true');
   const tabReviews = document.createElement('button');
   tabReviews.className = 'tab';
-  tabReviews.textContent = 'Avaliações pendentes';
+  tabReviews.textContent = 'Avaliações ocultas';
   tabReviews.setAttribute('aria-selected', 'false');
   tabs.append(tabReports, tabReviews);
   main.appendChild(tabs);
@@ -115,7 +118,20 @@ export async function adminModerationPage() {
           }, { title: 'Confirmar exclusão', danger: true, confirmLabel: 'Excluir' });
         });
 
-        tdActs.append(dismissBtn, deleteBtn);
+        const hideBtn = document.createElement('button');
+        hideBtn.className = 'btn btn-ghost btn-sm';
+        hideBtn.textContent = 'Ocultar avaliação';
+        hideBtn.addEventListener('click', async () => {
+          try {
+            await adminHideReview(report.review_id);
+            await adminResolveReport(report.id, 'resolved');
+            tr.style.opacity = '0.4';
+            setTimeout(() => tr.remove(), 300);
+            toastOk('Avaliação ocultada.');
+          } catch (e) { toastError(e.message); }
+        });
+
+        tdActs.append(dismissBtn, hideBtn, deleteBtn);
         tr.append(tdReview, tdReason, tdBy, tdDate, tdActs);
         tbody.appendChild(tr);
       }
@@ -130,7 +146,7 @@ export async function adminModerationPage() {
     }
   }
 
-  async function showPendingReviews() {
+  async function showHiddenReviews() {
     tabReviews.classList.add('active');
     tabReviews.setAttribute('aria-selected', 'true');
     tabReports.classList.remove('active');
@@ -139,17 +155,17 @@ export async function adminModerationPage() {
 
     const loading = document.createElement('p');
     loading.className = 'text-muted';
-    loading.textContent = 'Carregando avaliações pendentes…';
+    loading.textContent = 'Carregando avaliações ocultas…';
     content.appendChild(loading);
 
     try {
-      const data = await adminReports({ status: 'pending_review' });
+      const data = await adminReviews({ status: 'hidden' });
       content.replaceChildren();
 
       if (!data?.items?.length) {
         const empty = document.createElement('p');
         empty.className = 'text-muted empty-state';
-        empty.textContent = 'Nenhuma avaliação pendente de moderação.';
+        empty.textContent = 'Nenhuma avaliação está oculta.';
         content.appendChild(empty);
         return;
       }
@@ -221,7 +237,7 @@ export async function adminModerationPage() {
   }
 
   tabReports.addEventListener('click', showReports);
-  tabReviews.addEventListener('click', showPendingReviews);
+  tabReviews.addEventListener('click', showHiddenReviews);
   showReports();
 
   return root;

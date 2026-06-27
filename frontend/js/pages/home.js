@@ -180,9 +180,9 @@ function _appendSkeletonCards(container, n) {
 }
 
 async function _toggleWatchlist(movie, btn, wlIds) {
-  const id = movie.id;
-  if (!id) return;
   try {
+    const id = await _resolveLocalMovieId(movie);
+    if (!id) throw new Error('Não foi possível preparar este filme.');
     if (wlIds.has(id)) {
       await removeWatchlist(id);
       wlIds.delete(id);
@@ -204,9 +204,9 @@ async function _toggleWatchlist(movie, btn, wlIds) {
 }
 
 async function _toggleWatched(movie, btn, wdIds, wlIds) {
-  const id = movie.id;
-  if (!id) return;
   try {
+    const id = await _resolveLocalMovieId(movie);
+    if (!id) throw new Error('Não foi possível preparar este filme.');
     if (wdIds.has(id)) {
       await import('../api.js').then(a => a.unmarkWatched(id));
       wdIds.delete(id);
@@ -224,4 +224,12 @@ async function _toggleWatched(movie, btn, wdIds, wlIds) {
   } catch (e) {
     if (e.status === 401) { navigate('/login'); } else toastError(e.message);
   }
+}
+
+async function _resolveLocalMovieId(movie) {
+  if (movie.id) return movie.id;
+  if (!movie.tmdb_id) return null;
+  const { catalogMovie } = await import('../api.js');
+  const detail = await catalogMovie(movie.tmdb_id);
+  return detail?.local_id || null;
 }

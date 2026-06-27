@@ -1,9 +1,18 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Table, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.library import WatchedMovie, WatchlistItem
+    from app.models.review import Review
+
+
+def _now():
+    return datetime.now(timezone.utc)
 
 
 movie_genres = Table(
@@ -42,8 +51,10 @@ class Movie(Base):
     tmdb_vote_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_featured: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now, onupdate=_now
+    )
     tmdb_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     genres: Mapped[list[Genre]] = relationship("Genre", secondary=movie_genres, back_populates="movies")

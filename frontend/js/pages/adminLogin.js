@@ -1,4 +1,4 @@
-import { authLogin, authMe } from '../api.js';
+import { authLogin, authLogout, authMe } from '../api.js';
 import { setUser, isAdmin } from '../state.js';
 import { navigate } from '../router.js';
 
@@ -85,6 +85,7 @@ export function adminLoginPage() {
       await authLogin(email, password);
       const me = await authMe();
       if (me.role !== 'admin') {
+        await authLogout();
         errEl.textContent = 'Acesso negado: conta sem privilégios de administrador.';
         submitBtn.disabled = false;
         submitBtn.textContent = 'Entrar como Admin';

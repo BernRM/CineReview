@@ -91,6 +91,19 @@ def test_login_unknown_email(client):
     assert resp.status_code == 401
 
 
+def test_login_rate_limit(client):
+    payload = {
+        "email": "rate-limit@example.com",
+        "password": "wrongpassword",
+    }
+    for _ in range(5):
+        assert client.post("/api/auth/login", json=payload).status_code == 401
+
+    response = client.post("/api/auth/login", json=payload)
+    assert response.status_code == 429
+    assert "Retry-After" in response.headers
+
+
 def test_me_unauthenticated(client):
     resp = client.get("/api/auth/me")
     assert resp.status_code == 401

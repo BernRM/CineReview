@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UserAdminOut(BaseModel):
@@ -64,6 +64,11 @@ class MovieUpdateAdmin(BaseModel):
     overview: str | None = None
     is_featured: bool | None = None
     is_active: bool | None = None
+
+
+class MovieCreateAdmin(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    overview: str | None = Field(default=None, max_length=5000)
 
 
 class UserRoleUpdate(BaseModel):

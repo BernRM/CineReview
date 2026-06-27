@@ -99,6 +99,7 @@ backend/app/
 001_initial_schema.py  → cria users, sessions, movies, genres, reviews,
                          watchlist_items, watched_movies, review_reports, admin_audit_logs
 002_migrate_legacy_data.py → migra filmes→movies e avaliacoes→reviews (safe: no-op se nao existir)
+003_report_history.py → permite manter historico de denuncias resolvidas
 ```
 
 Rodam automaticamente ao subir o container:
@@ -147,13 +148,13 @@ R: Ferramenta de migracao de schema para SQLAlchemy. Permite evoluir o banco sem
 R: Cross-Site Request Forgery — ataque onde um site malicioso faz requisicoes em nome do usuario. Mitigamos com double-submit cookie: o servidor seta um token legivel, o frontend o envia como header, e o backend verifica que os valores batem.
 
 **P: Como funciona a autenticacao?**
-R: Login → gera token aleatorio → armazena SHA-256 no banco → retorna token em cookie HttpOnly. Em cada requisicao autenticada, o backend busca a sessao pelo hash do cookie.
+R: Login → gera token aleatorio → armazena HMAC-SHA-256 no banco usando o segredo da aplicação → retorna token em cookie HttpOnly. Em cada requisicao autenticada, o backend busca a sessao pelo hash do cookie.
 
 **P: O que e RBAC?**
 R: Role-Based Access Control — controle de acesso por papel. Usuarios tem role `user` ou `admin`. Endpoints `/api/admin` so sao acessiveis com role `admin`.
 
 **P: Como rodar os testes?**
-R: `docker compose run --rm fastapi pytest` — testes rodam dentro do container com SQLite in-memory.
+R: `docker compose run --rm fastapi pytest` testa o backend com SQLite em memoria. `npm run typecheck` valida os tipos Python. `npm run test:e2e` valida os fluxos reais no navegador com Playwright.
 
 ## 9. Roteiro de demonstracao
 

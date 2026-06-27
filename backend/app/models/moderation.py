@@ -1,11 +1,15 @@
 import enum
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.review import Review
 
 
 class ReportStatus(str, enum.Enum):
@@ -16,9 +20,6 @@ class ReportStatus(str, enum.Enum):
 
 class ReviewReport(Base):
     __tablename__ = "review_reports"
-    __table_args__ = (
-        UniqueConstraint("review_id", "reporter_user_id", "status", name="uq_report_open_per_user"),
-    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     review_id: Mapped[int] = mapped_column(ForeignKey("reviews.id", ondelete="CASCADE"), nullable=False, index=True)

@@ -85,12 +85,25 @@ def get_genres() -> list[dict]:
     return []
 
 
-def get_discover(genre_id: int | None = None, year: int | None = None, page: int = 1) -> dict | None:
+_DISCOVER_SORTS = {
+    "popularity.desc",
+    "vote_average.desc",
+    "primary_release_date.desc",
+    "primary_release_date.asc",
+}
+
+
+def get_discover(
+    genre_id: int | None = None,
+    year: int | None = None,
+    sort_by: str = "popularity.desc",
+    page: int = 1,
+) -> dict | None:
     params: dict[str, Any] = {
         "language": "pt-BR",
         "include_adult": "false",
         "region": "BR",
-        "sort_by": "popularity.desc",
+        "sort_by": sort_by if sort_by in _DISCOVER_SORTS else "popularity.desc",
         "page": page,
     }
     if genre_id:

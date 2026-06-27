@@ -48,13 +48,16 @@ def get_movie(movie_id: int, db: DbSession = Depends(get_db)):
         "id": movie.id,
         "tmdb_id": movie.tmdb_id,
         "title": movie.title,
+        "original_title": movie.original_title,
         "overview": movie.overview,
         "poster_path": movie.poster_path,
         "backdrop_path": movie.backdrop_path,
         "release_date": movie.release_date,
         "runtime_minutes": movie.runtime_minutes,
+        "original_language": movie.original_language,
         "trailer_key": movie.trailer_key,
         "tmdb_vote_average": float(movie.tmdb_vote_average) if movie.tmdb_vote_average else None,
+        "tmdb_vote_count": movie.tmdb_vote_count,
         "genres": [{"id": g.id, "name": g.name} for g in movie.genres],
         "is_featured": movie.is_featured,
         "community_rating": rating,
@@ -93,12 +96,14 @@ def upsert_review(
     rating = round(float(body.rating), 1)
     now = _now()
 
-    existing = get_user_review(db, user.id, movie_id)
+    existing = get_user_review(db, user.id, movie_id, include_deleted=True)
     if existing:
         existing.rating = rating
         existing.title = body.title
         existing.body = body.body
         existing.contains_spoiler = body.contains_spoiler
+        if existing.status == ReviewStatus.deleted:
+            existing.status = ReviewStatus.published
         existing.updated_at = now
         db.commit()
         db.refresh(existing)

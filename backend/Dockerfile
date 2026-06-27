@@ -8,6 +8,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY alembic.ini .
 COPY alembic ./alembic
 COPY app ./app
+COPY pytest.ini .
+COPY tests ./tests
 
 EXPOSE 8080
 
