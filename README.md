@@ -1,8 +1,8 @@
 <div align="center">
 
-# CineReview
+# CineView
 
-Sistema de Filmes e Avaliacoes desenvolvido para a disciplina **Servicos de Redes para Internet**.
+Sistema de filmes e avaliações com autenticação, TMDB, painel administrativo e SPA.
 
 ![Docker Compose](https://img.shields.io/badge/Docker%20Compose-Orquestracao-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![NGINX](https://img.shields.io/badge/NGINX-Proxy%20Reverso-009639?style=for-the-badge&logo=nginx&logoColor=white)
@@ -13,11 +13,9 @@ Sistema de Filmes e Avaliacoes desenvolvido para a disciplina **Servicos de Rede
 
 ## Sobre o Projeto
 
-O **CineReview** e uma aplicacao web conteinerizada para cadastrar filmes e registrar avaliacoes. O projeto foi desenvolvido para demonstrar orquestracao de servicos com Docker Compose, comunicacao entre containers, uso de variaveis de ambiente, persistencia com volume Docker e proxy reverso com NGINX.
+O **CineView** é uma aplicação web conteinerizada para descobrir, avaliar e organizar filmes. Integra dados do TMDB (The Movie Database), autenticação por sessão segura (opaque token + cookie HttpOnly + CSRF), RBAC (user/admin) e uma SPA de 15 rotas com design cinema-editorial.
 
-Tema do grupo:
-
-> Grupo 7: Sistema de Filmes e Avaliacoes
+**Grupo 7 — Disciplina: Serviços de Redes para Internet — IFES**
 
 ## Integrantes
 
@@ -25,313 +23,234 @@ Tema do grupo:
 - Maria Laura Barbosa Lourenco Cesar
 - Emily Bedim Jorge Borges
 
-## Stack Utilizada
+## Stack
 
-| Camada | Tecnologia | Funcao |
-| --- | --- | --- |
-| Proxy e frontend | NGINX | Serve o frontend estatico e encaminha `/api` para o backend |
-| Backend | FastAPI + Python | Disponibiliza a API REST e regras de CRUD |
-| Banco de dados | PostgreSQL | Persiste filmes e avaliacoes |
-| Orquestracao | Docker Compose | Sobe todos os servicos com um unico comando |
-| Frontend | HTML, CSS e JavaScript | Interface simples consumindo a API por `/api` |
+| Camada | Tecnologia |
+|---|---|
+| Proxy e frontend estático | NGINX |
+| Backend API | FastAPI + Python 3.12 |
+| ORM / Banco | SQLAlchemy v2 + PostgreSQL 16 |
+| Migrações | Alembic |
+| Hashing | pwdlib (Argon2id) |
+| Integração | TMDB API v3 (httpx + cache TTL) |
+| Frontend | SPA ES Modules (sem framework) |
+| Testes | pytest + SQLite in-memory |
+| Orquestração | Docker Compose |
 
 ## Arquitetura
 
-A aplicacao possui tres containers principais:
-
-| Container | Responsabilidade | Exposto ao hospedeiro |
-| --- | --- | --- |
-| `nginx` | Frontend estatico e proxy reverso | Sim, portas `80` e `443` |
-| `fastapi` | API interna na porta `8080` | Nao |
-| `postgres` | Banco de dados PostgreSQL | Nao |
-
-Rede Docker:
-
-```text
-netatividade01
+```
+                    ┌────────────────────────────────────────────┐
+                    │           rede: netatividade01             │
+  Navegador         │                                            │
+  :80 / :443 ──────►  NGINX  ──/api──►  FastAPI :8080          │
+                    │    │                   │                   │
+                    │    └──/──► HTML/CSS/JS │                   │
+                    │                   SQLAlchemy               │
+                    │                        │                   │
+                    │                   PostgreSQL :5432         │
+                    │                   volume: postgres_data    │
+                    └────────────────────────────────────────────┘
 ```
 
-Portas publicadas:
+**Somente NGINX é exposto ao host (portas 80:8080 e 443:8443). FastAPI e PostgreSQL são internos.**
 
-```text
-80:8080
-443:8443
-```
+## Pré-requisitos
 
-Fluxo da aplicacao:
+- Docker Desktop instalado e em execução
+- Arquivo `.env` na raiz (copiar de `.env.example`)
 
-```mermaid
-flowchart LR
-    A[Navegador] -->|http://localhost| B[NGINX]
-    B -->|Serve /| C[Frontend HTML CSS JS]
-    C -->|fetch /api| B
-    B -->|proxy_pass| D[FastAPI :8080]
-    D -->|SQLAlchemy| E[PostgreSQL :5432]
-    E -->|Volume persistente| F[(postgres_data)]
-```
-
-## Requisitos Atendidos
-
-- [x] Aplicacao com containers `nginx`, `fastapi` e `postgres`.
-- [x] NGINX como unico servico exposto ao hospedeiro.
-- [x] Mapeamento de portas `80:8080` e `443:8443`.
-- [x] Frontend estatico servido na raiz `/`.
-- [x] Proxy reverso encaminhando `/api` para o FastAPI.
-- [x] FastAPI executando internamente na porta `8080`.
-- [x] PostgreSQL usando imagem oficial.
-- [x] Usuario do banco definido como `postgres`.
-- [x] Senha do banco definida por variavel de ambiente no `.env`.
-- [x] Volume persistente para o PostgreSQL.
-- [x] Rede Docker chamada `netatividade01`.
-- [x] CRUD completo de filmes.
-- [x] CRUD completo de avaliacoes.
-- [x] Relacionamento entre filmes e avaliacoes.
-- [x] README com instrucoes, rotas e comandos de teste.
-
-## Entidades
-
-### Filmes
-
-| Campo | Tipo | Descricao |
-| --- | --- | --- |
-| `id` | Integer | Identificador unico |
-| `titulo` | String | Titulo do filme |
-| `diretor` | String | Diretor do filme |
-| `genero` | String | Genero do filme |
-| `ano` | Integer | Ano de lancamento |
-| `sinopse` | Text | Resumo do filme |
-
-### Avaliacoes
-
-| Campo | Tipo | Descricao |
-| --- | --- | --- |
-| `id` | Integer | Identificador unico |
-| `filme_id` | Integer | Chave estrangeira para `filmes.id` |
-| `nome_avaliador` | String | Nome de quem avaliou |
-| `nota` | Float | Nota de 0 a 10 |
-| `comentario` | Text | Comentario da avaliacao |
-
-Relacionamento:
-
-- Um filme pode ter varias avaliacoes.
-- Uma avaliacao pertence a exatamente um filme.
-- Ao remover um filme, suas avaliacoes tambem sao removidas.
-
-## Como Executar
-
-Antes de executar, garanta que o Docker Desktop esteja aberto e funcionando.
-
-Teste o Docker:
+## Configuração
 
 ```bash
-docker version
+cp .env.example .env
 ```
 
-O resultado deve mostrar as secoes `Client` e `Server`.
+Edite `.env` com os valores reais:
 
-Suba toda a aplicacao:
+```env
+POSTGRES_PASSWORD=troque_esta_senha
+POSTGRES_DB=cinereview
+TMDB_API_TOKEN=seu_token_tmdb_aqui        # Bearer token v4 do TMDB
+SESSION_SECRET=string_aleatoria_longa     # Segredo para hash de sessão
+COOKIE_SECURE=false                       # true em produção HTTPS
+ADMIN_EMAIL=admin@exemplo.com
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=senha_forte_do_admin
+```
+
+> Para obter o `TMDB_API_TOKEN`: crie conta em themoviedb.org → Configurações → API → "API Read Access Token (v4)".
+
+## Como Executar
 
 ```bash
 docker compose up --build
 ```
 
-Acesse no navegador:
-
 | Recurso | URL |
-| --- | --- |
-| Frontend | `http://localhost` |
-| Frontend HTTPS | `https://localhost` |
-| Documentacao da API | `http://localhost/api/docs` |
-| Health check | `http://localhost/api/health` |
+|---|---|
+| Frontend SPA | http://localhost |
+| Documentação API | http://localhost/api/docs |
+| Health check | http://localhost/api/health |
+| Admin | http://localhost/admin/login |
 
-Observacao: o HTTPS usa certificado local autoassinado, entao o navegador pode exibir um aviso de seguranca.
+O primeiro admin é criado automaticamente a partir das variáveis `ADMIN_*` do `.env` (apenas se não existir nenhum admin).
 
-## Variaveis de Ambiente
+## Migrações
 
-Arquivo `.env`:
+As migrações rodam automaticamente ao subir o container (`alembic upgrade head`):
 
-```env
-POSTGRES_PASSWORD=20241si003
-POSTGRES_DB=cinereview
-```
-
-Arquivo `.env.example`:
-
-```env
-POSTGRES_PASSWORD=troque_esta_senha
-POSTGRES_DB=cinereview
-```
-
-Na entrega da disciplina, a senha deve ser a matricula de um integrante do grupo, conforme solicitado na atividade.
+- `001_initial_schema` — cria todas as novas tabelas (users, sessions, movies, genres, reviews, watchlist, watched, reports, audit_log)
+- `002_migrate_legacy_data` — migra dados das tabelas `filmes`/`avaliacoes` para `movies`/`reviews` (no-op se não existirem)
 
 ## Rotas da API
 
-### Filmes
+### Auth (`/api/auth`)
 
-| Metodo | Rota | Descricao |
-| --- | --- | --- |
-| `GET` | `/api/filmes` | Lista todos os filmes |
-| `POST` | `/api/filmes` | Cadastra um novo filme |
-| `GET` | `/api/filmes/{filme_id}` | Busca um filme pelo ID |
-| `PUT` | `/api/filmes/{filme_id}` | Atualiza um filme |
-| `DELETE` | `/api/filmes/{filme_id}` | Remove um filme |
-| `GET` | `/api/filmes/{filme_id}/avaliacoes` | Lista avaliacoes de um filme |
+| Método | Rota | Descrição |
+|---|---|---|
+| POST | `/register` | Cadastro (cria sessão automática) |
+| POST | `/login` | Login (seta cookies session + csrf_token) |
+| POST | `/logout` | Encerra sessão (requer CSRF) |
+| GET | `/me` | Dados do usuário autenticado |
+| POST | `/change-password` | Alterar senha (requer CSRF) |
 
-### Avaliacoes
+### Catálogo (`/api/catalog`)
 
-| Metodo | Rota | Descricao |
-| --- | --- | --- |
-| `GET` | `/api/avaliacoes` | Lista todas as avaliacoes |
-| `GET` | `/api/avaliacoes?filme_id=1` | Lista avaliacoes filtrando por filme |
-| `POST` | `/api/avaliacoes` | Cadastra uma nova avaliacao |
-| `GET` | `/api/avaliacoes/{avaliacao_id}` | Busca uma avaliacao pelo ID |
-| `PUT` | `/api/avaliacoes/{avaliacao_id}` | Atualiza uma avaliacao |
-| `DELETE` | `/api/avaliacoes/{avaliacao_id}` | Remove uma avaliacao |
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/trending` | Filmes em destaque + tendências TMDB |
+| GET | `/search?q=...` | Busca por título |
+| GET | `/genres` | Lista de gêneros |
+| GET | `/movies/{tmdb_id}` | Detalhe de filme (sincroniza com TMDB) |
+| GET | `/discover` | Descoberta com filtros (gênero, ano, ordem) |
 
-## Exemplos de Teste com curl
+### Filmes (`/api/movies`)
 
-Health check:
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/{id}/reviews` | Avaliações publicadas |
+| PUT | `/{id}/review` | Criar/atualizar avaliação (autenticado) |
+| DELETE | `/{id}/review` | Remover avaliação (autenticado) |
+| POST | `/reviews/{rid}/report` | Reportar avaliação (autenticado) |
+
+### Perfil do usuário (`/api/me`)
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/profile` | Ver próprio perfil |
+| PATCH | `/profile` | Atualizar nome/bio |
+| GET/PUT/DELETE | `/watchlist/{id}` | Gerenciar lista |
+| GET/PUT/DELETE | `/watched/{id}` | Gerenciar assistidos |
+
+### Admin (`/api/admin`) — requer role admin
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/dashboard` | Estatísticas + atividade recente |
+| GET/PATCH | `/users` / `/users/{id}/status` | Listar/suspender usuários |
+| PATCH | `/users/{id}/role` | Promover a admin |
+| GET/PATCH | `/movies` / `/movies/{id}/featured` | Listar/destacar filmes |
+| POST | `/movies/import/{tmdb_id}` | Importar filme do TMDB |
+| GET/PATCH | `/reports` / `/reports/{id}` | Moderar reportes |
+| PATCH/DELETE | `/reviews/{id}/status` / `/reviews/{id}` | Moderar/excluir avaliações |
+
+## Segurança
+
+- **Senhas**: hash Argon2id via `pwdlib`
+- **Sessão**: token opaco `secrets.token_urlsafe(32)`, somente SHA-256 armazenado no DB
+- **Cookie de sessão**: `HttpOnly; SameSite=Lax; Secure` (configurável)
+- **CSRF**: double-submit cookie pattern (`csrf_token` legível + `X-CSRF-Token` header)
+- **XSS**: frontend usa `textContent`, `createElementNS`, `replaceChildren` — sem `innerHTML` com dados de usuário
+- **RBAC**: roles `user`/`admin`, verificados em cada endpoint protegido
+
+## Testes
+
+Os testes rodam **dentro do container** com SQLite in-memory (sem PostgreSQL):
 
 ```bash
-curl.exe http://localhost/api/health
+docker compose run --rm fastapi pytest
 ```
 
-Criar um filme:
+Cobertura:
+
+| Arquivo | O que testa |
+|---|---|
+| `test_passwords.py` | Hash Argon2id (unitário) |
+| `test_auth.py` | Register, login, me, logout via TestClient |
+| `test_catalog.py` | Endpoints de catálogo |
+| `test_movies.py` | Reviews, watchlist, watched |
+| `test_admin.py` | RBAC (401/403), CSRF obrigatório, suspend user |
+
+## Comandos Úteis
 
 ```bash
-curl.exe -X POST http://localhost/api/filmes -H "Content-Type: application/json" -d "{\"titulo\":\"Matrix\",\"diretor\":\"Lana Wachowski e Lilly Wachowski\",\"genero\":\"Ficcao cientifica\",\"ano\":1999,\"sinopse\":\"Um hacker descobre a verdade sobre sua realidade.\"}"
-```
+# Subir em background
+docker compose up -d --build
 
-Listar filmes:
+# Ver logs
+docker compose logs -f fastapi
 
-```bash
-curl.exe http://localhost/api/filmes
-```
-
-Criar uma avaliacao:
-
-```bash
-curl.exe -X POST http://localhost/api/avaliacoes -H "Content-Type: application/json" -d "{\"filme_id\":1,\"nome_avaliador\":\"Ana\",\"nota\":9.5,\"comentario\":\"Filme marcante e muito bem construido.\"}"
-```
-
-Listar avaliacoes de um filme:
-
-```bash
-curl.exe http://localhost/api/filmes/1/avaliacoes
-```
-
-Atualizar um filme:
-
-```bash
-curl.exe -X PUT http://localhost/api/filmes/1 -H "Content-Type: application/json" -d "{\"genero\":\"Acao e ficcao cientifica\"}"
-```
-
-Atualizar uma avaliacao:
-
-```bash
-curl.exe -X PUT http://localhost/api/avaliacoes/1 -H "Content-Type: application/json" -d "{\"nota\":10,\"comentario\":\"Continua excelente.\"}"
-```
-
-Remover uma avaliacao:
-
-```bash
-curl.exe -X DELETE http://localhost/api/avaliacoes/1
-```
-
-Remover um filme:
-
-```bash
-curl.exe -X DELETE http://localhost/api/filmes/1
-```
-
-## Comandos Uteis
-
-Ver containers:
-
-```bash
-docker compose ps
-```
-
-Ver logs:
-
-```bash
-docker compose logs -f
-```
-
-Ver logs de um servico especifico:
-
-```bash
-docker compose logs fastapi
-docker compose logs nginx
-docker compose logs postgres
-```
-
-Parar a aplicacao mantendo os dados:
-
-```bash
-docker compose down
-```
-
-Parar a aplicacao apagando o volume do banco:
-
-```bash
-docker compose down -v
-```
-
-Entrar no PostgreSQL:
-
-```bash
+# Entrar no PostgreSQL
 docker compose exec postgres psql -U postgres -d cinereview
+
+# Rodar testes
+docker compose run --rm fastapi pytest
+
+# Parar sem apagar dados
+docker compose down
 ```
 
 ## Estrutura do Projeto
 
-```text
+```
 .
-|-- backend/
-|   |-- Dockerfile
-|   |-- requirements.txt
-|   `-- app/
-|       |-- __init__.py
-|       `-- main.py
-|-- frontend/
-|   |-- assets/
-|   |   `-- cinereview-logo.svg
-|   |-- app.js
-|   |-- index.html
-|   `-- styles.css
-|-- nginx/
-|   |-- Dockerfile
-|   `-- default.conf
-|-- .env
-|-- .env.example
-|-- docker-compose.yml
-|-- GUIA_ESTUDO_APRESENTACAO.md
-|-- ROTEIRO_APRESENTACAO.md
-`-- README.md
+├── backend/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── pytest.ini
+│   ├── alembic.ini
+│   ├── alembic/versions/
+│   │   ├── 001_initial_schema.py
+│   │   └── 002_migrate_legacy_data.py
+│   ├── app/
+│   │   ├── config.py          # Configurações via pydantic-settings
+│   │   ├── database.py        # Engine, SessionLocal, Base
+│   │   ├── main.py            # App FastAPI, lifespan, CORS
+│   │   ├── dependencies.py    # get_current_user, get_admin_user, require_csrf
+│   │   ├── models/            # SQLAlchemy: user, session, movie, review, library, moderation
+│   │   ├── schemas/           # Pydantic: auth, movie, review, admin
+│   │   ├── routers/           # auth, catalog, movies, users, admin
+│   │   ├── security/          # passwords (Argon2id), sessions (SHA-256), csrf
+│   │   └── services/          # tmdb (httpx + cache), movie_sync, ratings
+│   └── tests/
+│       ├── conftest.py        # SQLite in-memory, TestClient
+│       └── test_*.py
+├── frontend/
+│   ├── index.html
+│   ├── css/                   # tokens, base, layout, components, pages, responsive
+│   └── js/
+│       ├── app.js             # Entry point: router + auth bootstrap
+│       ├── api.js             # fetch client com CSRF
+│       ├── router.js          # pushState SPA router
+│       ├── state.js           # pub/sub global state
+│       ├── components/        # header, footer, modal, toast, movieCard, starRating
+│       ├── utils/             # escape, debounce, lazyImages
+│       └── pages/             # home, explore, search, movie, login, register,
+│                              # profile, watchlist, watched, settings, credits,
+│                              # adminLogin, admin/dashboard, admin/movies,
+│                              # admin/users, admin/moderation
+├── nginx/
+│   ├── Dockerfile
+│   └── default.conf
+├── .env.example
+├── docker-compose.yml
+└── GUIA_ESTUDO_APRESENTACAO.md
 ```
 
-## Como Explicar na Apresentacao
+## Observações
 
-Resumo curto:
-
-> O NGINX e a unica entrada da aplicacao. Ele serve o frontend em `/` e encaminha `/api` para o FastAPI. O FastAPI acessa o PostgreSQL pela rede Docker interna `netatividade01`, usando variaveis de ambiente. O PostgreSQL usa volume para persistir os dados.
-
-Pontos principais para mostrar:
-
-- `docker-compose.yml`: tres servicos, rede, volume e portas somente no NGINX.
-- `nginx/default.conf`: regra de proxy reverso para `/api`.
-- `backend/app/main.py`: modelos, schemas, rotas CRUD e relacionamento.
-- `frontend/app.js`: chamadas `fetch` usando `/api`.
-- `README.md`: comandos de execucao e exemplos de rotas.
-- `GUIA_ESTUDO_APRESENTACAO.md`: guia de estudo para entrevista individual.
-- `ROTEIRO_APRESENTACAO.md`: roteiro para treinar a apresentacao passo a passo.
-
-## Observacoes
-
-- O backend e o banco nao sao expostos ao hospedeiro.
-- O frontend nao chama o FastAPI diretamente; ele chama `/api`.
-- O NGINX resolve a comunicacao interna com `fastapi:8080`.
-- O PostgreSQL persiste os dados no volume `postgres_data`.
-- O guia `GUIA_ESTUDO_APRESENTACAO.md` contem perguntas e respostas para a entrevista individual.
-- O roteiro `ROTEIRO_APRESENTACAO.md` contem a ordem sugerida para apresentar codigo e execucao.
+- O backend e o banco **não são expostos ao hospedeiro**.
+- O frontend nunca chama o FastAPI diretamente — usa `/api` via NGINX.
+- O TMDB é opcional: sem token configurado, o catálogo mostra apenas dados locais.
+- Não use `docker compose down -v` em produção — apaga o volume do banco.
