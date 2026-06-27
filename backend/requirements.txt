@@ -2,3 +2,9 @@ fastapi
 uvicorn[standard]
 SQLAlchemy
 psycopg2-binary
+alembic
+pydantic-settings
+pwdlib[argon2]
+httpx
+cachetools
+python-multipart
