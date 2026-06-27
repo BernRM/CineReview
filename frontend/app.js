@@ -2,6 +2,7 @@ const API = "/api";
 
 const state = {
   filmes: [],
+  mensagemTimer: null,
 };
 
 const el = {
@@ -55,11 +56,16 @@ async function request(path, options = {}) {
   return data;
 }
 
-function mostrarMensagem(texto, erro = false) {
+function mostrarMensagem(texto, tipo = "info") {
+  window.clearTimeout(state.mensagemTimer);
   el.mensagem.textContent = texto;
   el.mensagem.classList.toggle("hidden", !texto);
-  el.mensagem.style.background = erro ? "#fde2df" : "#fff3cd";
-  el.mensagem.style.color = erro ? "#8f2d28" : "#6b5200";
+  el.mensagem.classList.toggle("error", tipo === true || tipo === "error");
+  el.mensagem.classList.toggle("success", tipo === "success");
+
+  if (texto && tipo === "success") {
+    state.mensagemTimer = window.setTimeout(() => mostrarMensagem(""), 3600);
+  }
 }
 
 function atualizarStatus(ok) {
@@ -214,7 +220,37 @@ function renderFilmes() {
     .join("");
 }
 
-async function carregarDados() {
+function renderCarregando() {
+  el.listaFilmes.innerHTML = `
+    <div class="empty-state loading-state">
+      <strong>Carregando acervo</strong>
+      <p class="empty">Buscando filmes e avaliacoes na API.</p>
+    </div>
+  `;
+}
+
+function definirBotaoCarregando(button, carregando, textoCarregando = "Salvando...") {
+  if (!button) {
+    return;
+  }
+
+  if (carregando) {
+    button.dataset.originalText = button.textContent;
+    button.textContent = textoCarregando;
+    button.disabled = true;
+    return;
+  }
+
+  button.textContent = button.dataset.originalText || button.textContent;
+  button.disabled = false;
+  delete button.dataset.originalText;
+}
+
+async function carregarDados({ mostrarCarregando = true } = {}) {
+  if (mostrarCarregando) {
+    renderCarregando();
+  }
+
   try {
     state.filmes = await request("/filmes");
     atualizarResumo();
@@ -224,7 +260,7 @@ async function carregarDados() {
     mostrarMensagem("");
   } catch (error) {
     atualizarStatus(false);
-    mostrarMensagem(error.message, true);
+    mostrarMensagem(error.message, "error");
   }
 }
 
@@ -254,6 +290,7 @@ function encontrarAvaliacao(id) {
 
 el.filmeForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const botao = event.submitter;
   const payload = {
     titulo: el.titulo.value.trim(),
     diretor: el.diretor.value.trim(),
@@ -267,19 +304,24 @@ el.filmeForm.addEventListener("submit", async (event) => {
   const caminho = id ? `/filmes/${id}` : "/filmes";
 
   try {
+    definirBotaoCarregando(botao, true);
     await request(caminho, {
       method: metodo,
       body: JSON.stringify(payload),
     });
     limparFilmeForm();
     await carregarDados();
+    mostrarMensagem(id ? "Filme atualizado com sucesso." : "Filme cadastrado com sucesso.", "success");
   } catch (error) {
-    mostrarMensagem(error.message, true);
+    mostrarMensagem(error.message, "error");
+  } finally {
+    definirBotaoCarregando(botao, false);
   }
 });
 
 el.avaliacaoForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const botao = event.submitter;
   const payload = {
     filme_id: Number(el.filmeAvaliacao.value),
     nome_avaliador: el.nomeAvaliador.value.trim(),
@@ -292,14 +334,21 @@ el.avaliacaoForm.addEventListener("submit", async (event) => {
   const caminho = id ? `/avaliacoes/${id}` : "/avaliacoes";
 
   try {
+    definirBotaoCarregando(botao, true);
     await request(caminho, {
       method: metodo,
       body: JSON.stringify(payload),
     });
     limparAvaliacaoForm();
     await carregarDados();
+    mostrarMensagem(
+      id ? "Avaliacao atualizada com sucesso." : "Avaliacao cadastrada com sucesso.",
+      "success",
+    );
   } catch (error) {
-    mostrarMensagem(error.message, true);
+    mostrarMensagem(error.message, "error");
+  } finally {
+    definirBotaoCarregando(botao, false);
   }
 });
 
@@ -326,8 +375,16 @@ el.listaFilmes.addEventListener("click", async (event) => {
   }
 
   if (action === "delete-filme" && confirm("Excluir este filme e suas avaliacoes?")) {
-    await request(`/filmes/${id}`, { method: "DELETE" });
-    await carregarDados();
+    try {
+      definirBotaoCarregando(button, true, "Excluindo...");
+      await request(`/filmes/${id}`, { method: "DELETE" });
+      await carregarDados();
+      mostrarMensagem("Filme excluido com sucesso.", "success");
+    } catch (error) {
+      mostrarMensagem(error.message, "error");
+    } finally {
+      definirBotaoCarregando(button, false);
+    }
   }
 
   if (action === "new-avaliacao") {
@@ -349,8 +406,16 @@ el.listaFilmes.addEventListener("click", async (event) => {
   }
 
   if (action === "delete-avaliacao" && confirm("Excluir esta avaliacao?")) {
-    await request(`/avaliacoes/${id}`, { method: "DELETE" });
-    await carregarDados();
+    try {
+      definirBotaoCarregando(button, true, "Excluindo...");
+      await request(`/avaliacoes/${id}`, { method: "DELETE" });
+      await carregarDados();
+      mostrarMensagem("Avaliacao excluida com sucesso.", "success");
+    } catch (error) {
+      mostrarMensagem(error.message, "error");
+    } finally {
+      definirBotaoCarregando(button, false);
+    }
   }
 });
 

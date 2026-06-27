@@ -31,22 +31,22 @@ Relacionamento:
 
 ## 2. O que o professor pediu e onde esta no projeto
 
-| Requisito | Onde mostrar |
-| --- | --- |
-| Usar Docker Compose | `docker-compose.yml` |
-| Ter os servicos `nginx`, `fastapi` e `postgres` | `docker-compose.yml` |
-| Somente NGINX exposto ao hospedeiro | Apenas `nginx` tem `ports` |
-| NGINX nas portas `80:8080` e `443:8443` | `docker-compose.yml` |
-| Frontend estatico servido pelo NGINX | `nginx/Dockerfile` e `nginx/default.conf` |
-| Proxy reverso de `/api` para o FastAPI | `nginx/default.conf` |
-| FastAPI rodando na porta interna `8080` | `backend/Dockerfile` |
-| PostgreSQL com usuario `postgres` | `docker-compose.yml` |
-| Senha do banco por `.env` | `.env` e `docker-compose.yml` |
-| Volume persistente do PostgreSQL | `postgres_data` em `docker-compose.yml` |
-| Rede Docker chamada `netatividade01` | `docker-compose.yml` |
-| CRUD completo do tema | `backend/app/main.py` |
-| Frontend consumindo a API | `frontend/app.js` |
-| Documentacao para executar e testar | `README.md` |
+| Requisito                                             | Onde mostrar                                  |
+| ----------------------------------------------------- | --------------------------------------------- |
+| Usar Docker Compose                                   | `docker-compose.yml`                        |
+| Ter os servicos `nginx`, `fastapi` e `postgres` | `docker-compose.yml`                        |
+| Somente NGINX exposto ao hospedeiro                   | Apenas `nginx` tem `ports`                |
+| NGINX nas portas `80:8080` e `443:8443`           | `docker-compose.yml`                        |
+| Frontend estatico servido pelo NGINX                  | `nginx/Dockerfile` e `nginx/default.conf` |
+| Proxy reverso de `/api` para o FastAPI              | `nginx/default.conf`                        |
+| FastAPI rodando na porta interna `8080`             | `backend/Dockerfile`                        |
+| PostgreSQL com usuario `postgres`                   | `docker-compose.yml`                        |
+| Senha do banco por `.env`                           | `.env` e `docker-compose.yml`             |
+| Volume persistente do PostgreSQL                      | `postgres_data` em `docker-compose.yml`   |
+| Rede Docker chamada `netatividade01`                | `docker-compose.yml`                        |
+| CRUD completo do tema                                 | `backend/app/main.py`                       |
+| Frontend consumindo a API                             | `frontend/app.js`                           |
+| Documentacao para executar e testar                   | `README.md`                                 |
 
 ## 3. Fluxo da aplicacao
 
