@@ -45,7 +45,7 @@ def register(body: RegisterRequest, response: Response, db: DbSession = Depends(
         raise HTTPException(400, "Username já em uso.")
 
     user = User(
-        name=body.name,
+        name=body.name or body.username,
         username=body.username,
         email=body.email,
         password_hash=hash_password(body.password),

@@ -6,7 +6,7 @@ USERNAME_RE = re.compile(r"^[a-zA-Z0-9_-]{3,30}$")
 
 
 class RegisterRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
+    name: str | None = Field(default=None, max_length=120)
     username: str = Field(min_length=3, max_length=30)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)

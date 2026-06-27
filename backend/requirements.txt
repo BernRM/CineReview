@@ -8,3 +8,5 @@ pwdlib[argon2]
 httpx
 cachetools
 python-multipart
+pytest
+pytest-asyncio
