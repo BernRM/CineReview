@@ -1,153 +1,43 @@
 <!doctype html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CineReview</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <header class="topbar">
-      <div class="brand" aria-label="CineReview">
-        <img src="assets/cinereview-logo.svg" alt="CineReview" />
-        <div>
-          <h1>CineReview</h1>
-          <p>Catalogo de filmes e avaliacoes</p>
-        </div>
-      </div>
-      <div class="topbar-actions">
-        <a class="docs-link" href="/api/docs" target="_blank" rel="noreferrer">API Docs</a>
-        <div id="api-status" class="status-pill">Conectando</div>
-      </div>
-    </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CineView — Descubra, avalie e organize seus filmes favoritos." />
+  <title>CineView</title>
 
-    <main class="app-shell">
-      <section class="overview" aria-label="Resumo do catalogo">
-        <div class="overview-copy">
-          <span class="eyebrow">Grupo 7</span>
-          <h2>Sistema de Filmes e Avaliacoes</h2>
-          <p>Gerencie o acervo, registre notas e acompanhe a reputacao dos filmes em um painel unico.</p>
-        </div>
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/pages.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
 
-        <div class="stats-grid">
-          <article class="stat-card">
-            <span>Filmes</span>
-            <strong id="stat-filmes">0</strong>
-          </article>
-          <article class="stat-card">
-            <span>Avaliacoes</span>
-            <strong id="stat-avaliacoes">0</strong>
-          </article>
-          <article class="stat-card">
-            <span>Media geral</span>
-            <strong id="stat-media">-</strong>
-          </article>
-        </div>
-      </section>
+  <!-- Old stylesheet kept for reference — unused in new SPA -->
+</head>
+<body>
+  <div id="app">
+    <!-- Header injected by header component -->
+    <header id="site-header" role="banner"></header>
 
-      <section class="workspace">
-        <aside class="forms-column" aria-label="Formularios">
-          <section class="panel form-panel">
-            <div class="section-title">
-              <div>
-                <span class="section-kicker">Catalogo</span>
-                <h2 id="filme-form-title">Novo filme</h2>
-              </div>
-              <button id="cancelar-filme" class="button ghost hidden" type="button">Cancelar</button>
-            </div>
+    <!-- Page content injected by router -->
+    <main id="page-root" role="main" aria-live="polite"></main>
 
-            <form id="filme-form" class="stack">
-              <input type="hidden" id="filme-id" />
+    <!-- Footer injected by footer component -->
+    <footer id="site-footer" role="contentinfo"></footer>
+  </div>
 
-              <label>
-                Titulo
-                <input id="titulo" name="titulo" required maxlength="150" autocomplete="off" placeholder="Ex.: Matrix" />
-              </label>
+  <!-- Toast container -->
+  <div id="toast-container" aria-live="assertive" aria-atomic="true"></div>
 
-              <div class="field-grid">
-                <label>
-                  Diretor
-                  <input id="diretor" name="diretor" required maxlength="120" autocomplete="off" placeholder="Nome do diretor" />
-                </label>
-                <label>
-                  Genero
-                  <input id="genero" name="genero" required maxlength="80" autocomplete="off" placeholder="Drama, acao..." />
-                </label>
-              </div>
+  <!-- Mobile menu -->
+  <nav id="mobile-menu" class="mobile-menu" role="navigation" aria-label="Menu móvel"></nav>
 
-              <label>
-                Ano
-                <input id="ano" name="ano" type="number" min="1888" max="2100" required inputmode="numeric" placeholder="1999" />
-              </label>
+  <!-- Modal container -->
+  <div id="modal-root"></div>
 
-              <label>
-                Sinopse
-                <textarea id="sinopse" name="sinopse" rows="5" required placeholder="Resumo do filme"></textarea>
-              </label>
-
-              <button class="button primary" type="submit">Salvar filme</button>
-            </form>
-          </section>
-
-          <section class="panel form-panel">
-            <div class="section-title">
-              <div>
-                <span class="section-kicker">Critica</span>
-                <h2 id="avaliacao-form-title">Nova avaliacao</h2>
-              </div>
-              <button id="cancelar-avaliacao" class="button ghost hidden" type="button">Cancelar</button>
-            </div>
-
-            <form id="avaliacao-form" class="stack">
-              <input type="hidden" id="avaliacao-id" />
-
-              <label>
-                Filme
-                <select id="filme-avaliacao" name="filme_id" required></select>
-              </label>
-
-              <div class="field-grid">
-                <label>
-                  Avaliador
-                  <input id="nome-avaliador" name="nome_avaliador" required maxlength="120" autocomplete="name" placeholder="Nome" />
-                </label>
-                <label>
-                  Nota
-                  <input id="nota" name="nota" type="number" min="0" max="10" step="0.1" required inputmode="decimal" placeholder="0 a 10" />
-                </label>
-              </div>
-
-              <label>
-                Comentario
-                <textarea id="comentario" name="comentario" rows="5" required placeholder="Comentario da avaliacao"></textarea>
-              </label>
-
-              <button class="button primary" type="submit">Salvar avaliacao</button>
-            </form>
-          </section>
-        </aside>
-
-        <section class="catalog-panel" aria-label="Filmes cadastrados">
-          <div class="catalog-toolbar">
-            <div>
-              <span class="section-kicker">Acervo</span>
-              <h2>Filmes cadastrados</h2>
-            </div>
-            <div class="toolbar-actions">
-              <label class="search-field">
-                <span>Buscar</span>
-                <input id="busca" type="search" autocomplete="off" placeholder="Titulo, diretor ou genero" />
-              </label>
-              <button id="recarregar" class="button secondary" type="button">Atualizar</button>
-            </div>
-          </div>
-
-          <div id="mensagem" class="message hidden" role="status" aria-live="polite"></div>
-          <div id="lista-filmes" class="movie-grid" aria-live="polite"></div>
-        </section>
-      </section>
-    </main>
-
-    <script src="app.js"></script>
-  </body>
+  <!-- App entry -->
+  <script type="module" src="js/app.js"></script>
+</body>
 </html>

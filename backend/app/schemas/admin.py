@@ -25,6 +25,7 @@ class DashboardStats(BaseModel):
     total_movies: int
     total_reviews: int
     open_reports: int
+    recent_activity: list = []
 
 
 class AuditLogOut(BaseModel):
@@ -56,3 +57,18 @@ class ReviewStatusUpdate(BaseModel):
 
 class ReportStatusUpdate(BaseModel):
     status: str
+
+
+class MovieUpdateAdmin(BaseModel):
+    title: str | None = None
+    overview: str | None = None
+    is_featured: bool | None = None
+    is_active: bool | None = None
+
+
+class UserRoleUpdate(BaseModel):
+    role: str
+
+
+class MovieFeaturedUpdate(BaseModel):
+    featured: bool

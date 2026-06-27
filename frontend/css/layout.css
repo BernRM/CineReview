@@ -1,0 +1,78 @@
+/* App shell */
+#app {
+  display: grid;
+  grid-template-rows: var(--header-h) 1fr auto;
+  min-height: 100dvh;
+}
+
+/* Page wrapper */
+.page {
+  padding-top: var(--sp-8);
+  padding-bottom: var(--sp-16);
+}
+
+/* Constrained content */
+.container {
+  width: min(var(--max-w), calc(100% - var(--sp-8)));
+  margin-inline: auto;
+}
+
+/* Section */
+.section { margin-bottom: var(--sp-12); }
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+.section-title {
+  display: grid;
+  gap: var(--sp-1);
+}
+.section-title h2 {
+  font-size: var(--text-xl);
+  color: var(--text-1);
+}
+
+/* Horizontal scroll rail */
+.scroll-rail {
+  display: flex;
+  gap: var(--sp-4);
+  overflow-x: auto;
+  padding-bottom: var(--sp-3);
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-rail::-webkit-scrollbar { height: 3px; }
+.scroll-rail > * { scroll-snap-align: start; flex: 0 0 auto; }
+
+/* Grid layouts */
+.grid-movies {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--sp-4);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-6);
+}
+
+/* Stack */
+.stack { display: grid; gap: var(--sp-4); }
+.stack-sm { display: grid; gap: var(--sp-2); }
+.stack-lg { display: grid; gap: var(--sp-8); }
+
+/* Inline cluster */
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* Spacers */
+.mt-auto { margin-top: auto; }
+.ml-auto { margin-left: auto; }

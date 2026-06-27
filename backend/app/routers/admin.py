@@ -1,3 +1,4 @@
+import math
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,15 +9,17 @@ from app.dependencies import get_admin_user, require_csrf
 from app.models.moderation import AdminAuditLog, ReviewReport, ReportStatus
 from app.models.movie import Movie
 from app.models.review import Review, ReviewStatus
-from app.models.user import User, UserStatus
+from app.models.user import User, UserRole, UserStatus
 from app.schemas.admin import (
-    DashboardStats, MovieUpdateAdmin, ReportStatusUpdate,
-    ReviewStatusUpdate, UserStatusUpdate,
+    DashboardStats, MovieFeaturedUpdate, MovieUpdateAdmin,
+    ReportStatusUpdate, ReviewStatusUpdate, UserRoleUpdate, UserStatusUpdate,
 )
 from app.security.sessions import revoke_all_user_sessions
 from app.services.movie_sync import upsert_movie_from_tmdb
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+PAGE_SIZE = 20
 
 
 def _now():
@@ -36,14 +39,36 @@ def _audit(db: DbSession, admin: User, action: str, target_type: str, target_id:
     db.flush()
 
 
+def _paginate(total: int, page: int) -> dict:
+    return {"total": total, "page": page, "total_pages": max(1, math.ceil(total / PAGE_SIZE))}
+
+
 @router.get("/dashboard", response_model=DashboardStats)
 def dashboard(db: DbSession = Depends(get_db), admin: User = Depends(get_admin_user)):
+    from app.models.moderation import AdminAuditLog
+    recent = (
+        db.query(AdminAuditLog)
+        .order_by(AdminAuditLog.created_at.desc())
+        .limit(10)
+        .all()
+    )
     return {
         "total_users": db.query(User).count(),
         "active_users": db.query(User).filter(User.status == UserStatus.active).count(),
         "total_movies": db.query(Movie).filter(Movie.is_active).count(),
         "total_reviews": db.query(Review).filter(Review.status == ReviewStatus.published).count(),
         "open_reports": db.query(ReviewReport).filter(ReviewReport.status == ReportStatus.open).count(),
+        "recent_activity": [
+            {
+                "id": log.id,
+                "action": log.action,
+                "target_type": log.target_type,
+                "target_id": log.target_id,
+                "admin_username": db.get(User, log.admin_user_id).username if log.admin_user_id else None,
+                "created_at": log.created_at,
+            }
+            for log in recent
+        ],
     }
 
 
@@ -53,6 +78,7 @@ def dashboard(db: DbSession = Depends(get_db), admin: User = Depends(get_admin_u
 def list_users(
     page: int = Query(default=1, ge=1),
     q: str | None = None,
+    status: str | None = None,
     db: DbSession = Depends(get_db),
     admin: User = Depends(get_admin_user),
 ):
@@ -60,19 +86,20 @@ def list_users(
     if q:
         like = f"%{q}%"
         query = query.filter((User.username.ilike(like)) | (User.email.ilike(like)))
+    if status:
+        query = query.filter(User.status == UserStatus(status))
     total = query.count()
-    users = query.order_by(User.id).offset((page - 1) * 20).limit(20).all()
+    users = query.order_by(User.id).offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE).all()
     return {
-        "total": total,
-        "page": page,
-        "results": [
+        **_paginate(total, page),
+        "items": [
             {
                 "id": u.id,
-                "name": u.name,
                 "username": u.username,
                 "email": u.email,
                 "role": u.role.value,
                 "status": u.status.value,
+                "review_count": db.query(Review).filter(Review.user_id == u.id).count(),
                 "created_at": u.created_at,
                 "last_login_at": u.last_login_at,
             }
@@ -104,6 +131,27 @@ def update_user_status(
     return {"ok": True}
 
 
+@router.patch("/users/{user_id}/role")
+def update_user_role(
+    user_id: int,
+    body: UserRoleUpdate,
+    db: DbSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+    _csrf=Depends(require_csrf),
+):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "Usuário não encontrado.")
+    if user.id == admin.id:
+        raise HTTPException(400, "Você não pode alterar sua própria conta.")
+    if body.role not in ("user", "admin"):
+        raise HTTPException(400, "Role inválido.")
+    user.role = UserRole(body.role)
+    _audit(db, admin, f"user_role_{body.role}", "user", user_id)
+    db.commit()
+    return {"ok": True}
+
+
 # ---------- Movies ----------
 
 @router.get("/movies")
@@ -117,11 +165,10 @@ def list_movies(
     if q:
         query = query.filter(Movie.title.ilike(f"%{q}%"))
     total = query.count()
-    movies = query.order_by(Movie.id).offset((page - 1) * 20).limit(20).all()
+    movies = query.order_by(Movie.id).offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE).all()
     return {
-        "total": total,
-        "page": page,
-        "results": [
+        **_paginate(total, page),
+        "items": [
             {
                 "id": m.id,
                 "tmdb_id": m.tmdb_id,
@@ -130,6 +177,7 @@ def list_movies(
                 "is_active": m.is_active,
                 "release_date": m.release_date,
                 "poster_path": m.poster_path,
+                "review_count": db.query(Review).filter(Review.movie_id == m.id, Review.status == ReviewStatus.published).count(),
             }
             for m in movies
         ],
@@ -145,7 +193,7 @@ def import_movie(
 ):
     existing = db.query(Movie).filter(Movie.tmdb_id == tmdb_id).first()
     if existing:
-        return {"id": existing.id, "already_exists": True}
+        return {"id": existing.id, "title": existing.title, "already_exists": True}
     movie = upsert_movie_from_tmdb(db, tmdb_id)
     if not movie:
         raise HTTPException(503, "Não foi possível buscar o filme no TMDB.")
@@ -176,6 +224,7 @@ def update_movie(
 @router.patch("/movies/{movie_id}/featured")
 def toggle_featured(
     movie_id: int,
+    body: MovieFeaturedUpdate,
     db: DbSession = Depends(get_db),
     admin: User = Depends(get_admin_user),
     _csrf=Depends(require_csrf),
@@ -183,7 +232,7 @@ def toggle_featured(
     movie = db.get(Movie, movie_id)
     if not movie:
         raise HTTPException(404, "Filme não encontrado.")
-    movie.is_featured = not movie.is_featured
+    movie.is_featured = body.featured
     movie.updated_at = _now()
     _audit(db, admin, "toggle_featured", "movie", movie_id, {"featured": movie.is_featured})
     db.commit()
@@ -195,23 +244,26 @@ def toggle_featured(
 @router.get("/reports")
 def list_reports(
     page: int = Query(default=1, ge=1),
-    status_filter: str | None = Query(default=None, alias="status"),
+    status: str | None = Query(default=None),
     db: DbSession = Depends(get_db),
     admin: User = Depends(get_admin_user),
 ):
     query = db.query(ReviewReport)
-    if status_filter:
-        query = query.filter(ReviewReport.status == ReportStatus(status_filter))
+    if status:
+        try:
+            query = query.filter(ReviewReport.status == ReportStatus(status))
+        except ValueError:
+            raise HTTPException(400, "Status de reporte inválido.")
     total = query.count()
-    reports = query.order_by(ReviewReport.created_at.desc()).offset((page - 1) * 20).limit(20).all()
+    reports = query.order_by(ReviewReport.created_at.desc()).offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE).all()
     return {
-        "total": total,
-        "page": page,
-        "results": [
+        **_paginate(total, page),
+        "items": [
             {
                 "id": r.id,
                 "review_id": r.review_id,
                 "reporter_user_id": r.reporter_user_id,
+                "reporter_username": db.get(User, r.reporter_user_id).username if r.reporter_user_id else None,
                 "reason": r.reason,
                 "details": r.details,
                 "status": r.status.value,
@@ -243,6 +295,8 @@ def update_report(
     return {"ok": True}
 
 
+# ---------- Reviews ----------
+
 @router.patch("/reviews/{review_id}/status")
 def moderate_review(
     review_id: int,
@@ -263,6 +317,24 @@ def moderate_review(
     return {"ok": True}
 
 
+@router.delete("/reviews/{review_id}", status_code=204)
+def delete_review_admin(
+    review_id: int,
+    db: DbSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+    _csrf=Depends(require_csrf),
+):
+    review = db.get(Review, review_id)
+    if not review:
+        raise HTTPException(404, "Avaliação não encontrada.")
+    review.status = ReviewStatus.deleted
+    review.updated_at = _now()
+    _audit(db, admin, "delete_review", "review", review_id)
+    db.commit()
+
+
+# ---------- Audit ----------
+
 @router.get("/audit")
 def audit_log(
     page: int = Query(default=1, ge=1),
@@ -273,17 +345,17 @@ def audit_log(
     logs = (
         db.query(AdminAuditLog)
         .order_by(AdminAuditLog.created_at.desc())
-        .offset((page - 1) * 20)
-        .limit(20)
+        .offset((page - 1) * PAGE_SIZE)
+        .limit(PAGE_SIZE)
         .all()
     )
     return {
-        "total": total,
-        "page": page,
-        "results": [
+        **_paginate(total, page),
+        "items": [
             {
                 "id": log.id,
                 "admin_user_id": log.admin_user_id,
+                "admin_username": db.get(User, log.admin_user_id).username if log.admin_user_id else None,
                 "action": log.action,
                 "target_type": log.target_type,
                 "target_id": log.target_id,

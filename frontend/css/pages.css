@@ -1,0 +1,165 @@
+/* ── HOME ──────────────────────────────────────── */
+.home-featured-dots {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+.featured-dot {
+  width: 24px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,255,255,.25);
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+.featured-dot.active { background: var(--amber); width: 36px; }
+
+/* ── MOVIE DETAIL ──────────────────────────────── */
+.trailer-embed {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: #000;
+}
+.trailer-embed iframe { width: 100%; height: 100%; border: none; }
+
+/* ── PROFILE ───────────────────────────────────── */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-8) 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-8);
+}
+.avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-hi);
+  flex: 0 0 auto;
+  border: 2px solid var(--border);
+}
+.profile-name { font-size: var(--text-xl); font-weight: 700; }
+.profile-username { color: var(--text-2); font-size: var(--text-sm); }
+.profile-bio { color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-2); }
+.profile-stats {
+  display: flex;
+  gap: var(--sp-6);
+  margin-top: var(--sp-4);
+}
+.profile-stat { text-align: center; }
+.profile-stat-value { font-size: var(--text-xl); font-weight: 800; color: var(--text-1); }
+.profile-stat-label { font-size: var(--text-xs); color: var(--text-3); }
+
+/* ── SETTINGS ──────────────────────────────────── */
+.settings-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: var(--sp-8);
+  align-items: start;
+}
+.settings-nav {
+  position: sticky;
+  top: calc(var(--header-h) + var(--sp-4));
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: var(--sp-3);
+}
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all var(--dur-fast);
+}
+.settings-nav-item:hover, .settings-nav-item.active {
+  background: var(--surface);
+  color: var(--text-1);
+}
+
+/* ── CREDITS ───────────────────────────────────── */
+.credits-page { max-width: 720px; margin: 0 auto; }
+.credits-page h1 { font-family: var(--font-display); font-size: var(--text-4xl); margin-bottom: var(--sp-8); }
+.credits-section { margin-bottom: var(--sp-10); }
+.credits-section h2 { font-size: var(--text-xl); color: var(--text-1); margin-bottom: var(--sp-4); border-bottom: 1px solid var(--border); padding-bottom: var(--sp-3); }
+.credits-section p { color: var(--text-2); line-height: 1.8; }
+.tmdb-logo-large { height: 28px; margin-bottom: var(--sp-4); opacity: .8; }
+
+/* ── ADMIN LOGIN ───────────────────────────────── */
+.admin-login-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+}
+.admin-login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--sp-8);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg);
+}
+.admin-login-title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  margin-bottom: var(--sp-1);
+  color: var(--text-1);
+}
+.admin-login-sub { color: var(--text-3); font-size: var(--text-sm); margin-bottom: var(--sp-6); }
+
+/* ── SEARCH ────────────────────────────────────── */
+.search-bar-large {
+  display: flex;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-8);
+}
+.search-bar-large input {
+  flex: 1;
+  padding: var(--sp-4) var(--sp-5);
+  font-size: var(--text-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  color: var(--text-1);
+  transition: border-color var(--dur-fast);
+}
+.search-bar-large input:focus { border-color: var(--amber); outline: none; }
+
+/* ── FILTER BAR ────────────────────────────────── */
+.filter-bar {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-6);
+  align-items: center;
+}
+.filter-bar select {
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all var(--dur-fast);
+}
+.filter-bar select:hover { border-color: var(--border); }
+.filter-bar select:focus { outline: none; border-color: var(--amber); }
+
+/* ── WATCHLIST / WATCHED ───────────────────────── */
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--sp-4);
+}
