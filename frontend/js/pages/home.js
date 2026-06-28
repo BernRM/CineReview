@@ -119,8 +119,10 @@ export async function homePage() {
           onWatched: isLoggedIn() ? (m, btn) => _toggleWatched(m, btn, wdIds, wlIds) : null,
         }
       );
-      card.style.width = '180px';
       rail.appendChild(card);
+    }
+    if (trending.length > 0 && trending.length < 3) {
+      rail.appendChild(_catalogNote());
     }
 
     // Featured section
@@ -146,7 +148,6 @@ export async function homePage() {
           inWatchlist: wlIds.has(movie.id),
           onWatchlist: isLoggedIn() ? (m, btn) => _toggleWatchlist(m, btn, wlIds) : null,
         });
-        card.style.width = '180px';
         featRail.appendChild(card);
       }
       featSection.appendChild(featRail);
@@ -177,6 +178,29 @@ function _appendSkeletonCards(container, n) {
     wrap.append(img, txt);
     container.appendChild(wrap);
   }
+}
+
+function _catalogNote() {
+  const note = document.createElement('aside');
+  note.className = 'catalog-note';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'eyebrow';
+  eyebrow.textContent = 'Sua sessão começa aqui';
+
+  const title = document.createElement('h3');
+  title.textContent = 'Encontre o próximo filme da sua lista.';
+
+  const text = document.createElement('p');
+  text.textContent = 'Explore o catálogo, registre o que assistiu e compartilhe suas avaliações.';
+
+  const link = document.createElement('a');
+  link.className = 'btn btn-ghost';
+  link.href = '/explorar';
+  link.textContent = 'Explorar catálogo';
+
+  note.append(eyebrow, title, text, link);
+  return note;
 }
 
 async function _toggleWatchlist(movie, btn, wlIds) {

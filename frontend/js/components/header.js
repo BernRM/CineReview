@@ -68,8 +68,7 @@ export function renderHeader() {
 
   // Hamburger (mobile)
   const menuBtn = document.createElement('button');
-  menuBtn.className = 'btn btn-ghost btn-sm';
-  menuBtn.style.cssText = 'display:none;padding:6px;min-height:36px;';
+  menuBtn.className = 'menu-toggle';
   menuBtn.setAttribute('aria-label', 'Menu');
   menuBtn.setAttribute('aria-expanded', 'false');
   menuBtn.textContent = '☰';
