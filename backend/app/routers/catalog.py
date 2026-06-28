@@ -19,8 +19,10 @@ def _movie_to_summary(movie: Movie, db: DbSession) -> dict:
         "id": movie.id,
         "tmdb_id": movie.tmdb_id,
         "title": movie.title,
+        "overview": movie.overview,
         "release_date": movie.release_date,
         "poster_path": movie.poster_path,
+        "backdrop_path": movie.backdrop_path,
         "tmdb_vote_average": float(movie.tmdb_vote_average) if movie.tmdb_vote_average else None,
         "is_featured": movie.is_featured,
         "genres": movie.genres,
@@ -51,7 +53,12 @@ def _local_catalog_item(movie: Movie, db: DbSession) -> dict:
 def trending(db: DbSession = Depends(get_db)):
     data = tmdb.get_trending()
     results = []
-    featured = db.query(Movie).filter(Movie.is_featured, Movie.is_active).all()
+    featured = (
+        db.query(Movie)
+        .filter(Movie.is_featured, Movie.is_active)
+        .order_by(Movie.tmdb_id.is_(None), Movie.updated_at.desc())
+        .all()
+    )
     featured_tmdb_ids = {m.tmdb_id for m in featured if m.tmdb_id}
 
     if data:

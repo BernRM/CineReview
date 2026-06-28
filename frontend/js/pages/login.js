@@ -27,6 +27,10 @@ export function loginPage() {
   h1.className = 'auth-title';
   h1.textContent = 'Entrar';
 
+  const subtitle = document.createElement('p');
+  subtitle.className = 'auth-subtitle';
+  subtitle.textContent = 'Acesse sua conta para continuar no CineView.';
+
   const form = document.createElement('form');
   form.className = 'auth-form';
   form.noValidate = true;
@@ -57,7 +61,25 @@ export function loginPage() {
   register.appendChild(regLink);
 
   form.append(emailGroup, passGroup, errEl, submitBtn, register);
-  panel.append(h1, form);
+  const demoAccess = document.createElement('aside');
+  demoAccess.className = 'demo-access';
+  const demoHeader = document.createElement('div');
+  demoHeader.className = 'demo-access-header';
+  const demoLabel = document.createElement('strong');
+  demoLabel.textContent = 'Acessos para apresentação';
+  const demoHint = document.createElement('span');
+  demoHint.textContent = 'Clique em uma conta para preencher o formulário.';
+  demoHeader.append(demoLabel, demoHint);
+
+  const demoAccounts = document.createElement('div');
+  demoAccounts.className = 'demo-accounts';
+  demoAccounts.append(
+    _demoAccount('Usuário', 'usuario@cineview.local', 'CineView@User2026', 'user'),
+    _demoAccount('Administrador', 'admin@cineview.local', 'CineView@Admin2026', 'admin'),
+  );
+  demoAccess.append(demoHeader, demoAccounts);
+
+  panel.append(h1, subtitle, form, demoAccess);
   root.append(deco, panel);
 
   form.addEventListener('submit', async (e) => {
@@ -85,6 +107,29 @@ export function loginPage() {
       submitBtn.textContent = 'Entrar';
     }
   });
+
+  function _demoAccount(label, email, password, type) {
+    const account = document.createElement('button');
+    account.type = 'button';
+    account.className = `demo-account demo-account-${type}`;
+    account.setAttribute('aria-label', `Usar conta de ${label}`);
+
+    const role = document.createElement('span');
+    role.className = 'demo-account-role';
+    role.textContent = label;
+    const credentials = document.createElement('span');
+    credentials.className = 'demo-account-credentials';
+    credentials.textContent = `${email} · ${password}`;
+    account.append(role, credentials);
+
+    account.addEventListener('click', () => {
+      emailInput.value = email;
+      passInput.value = password;
+      errEl.textContent = '';
+      submitBtn.focus();
+    });
+    return account;
+  }
 
   return root;
 }

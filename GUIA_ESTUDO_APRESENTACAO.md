@@ -31,7 +31,7 @@ Este guia cobre tanto a apresentacao do projeto quanto as possiveis perguntas da
 1. O usuario acessa `http://localhost`.
 2. O NGINX recebe a requisicao na porta 80 do computador.
 3. O NGINX entrega `index.html`, CSS e modulos JS.
-4. O JavaScript (SPA) chama rotas como `/api/catalog/trending`.
+4. Sem sessao, a SPA abre o login; depois da autenticacao, chama rotas como `/api/catalog/trending`.
 5. O NGINX recebe `/api/*` e encaminha para `http://fastapi:8080`.
 6. O FastAPI processa a rota, usa SQLAlchemy para consultar o PostgreSQL e pode chamar o TMDB.
 7. O PostgreSQL grava os dados no volume `postgres_data`.
@@ -47,7 +47,7 @@ Frase curta:
 backend/app/
 ├── config.py          → variaveis de ambiente com pydantic-settings
 ├── database.py        → engine SQLAlchemy, Base, get_db()
-├── main.py            → app FastAPI, lifespan (bootstrap admin), CORS, routers
+├── main.py            → app FastAPI, lifespan (bootstrap admin/demo), routers
 ├── dependencies.py    → get_current_user, get_admin_user, require_csrf
 ├── models/            → User, Session, Movie, Genre, Review, Watchlist, Watched, Report, AuditLog
 ├── schemas/           → RegisterRequest, LoginRequest, UserMeResponse, DashboardStats...
@@ -59,11 +59,12 @@ backend/app/
 │   └── admin.py       → dashboard, users, movies, reports, moderation, audit
 ├── security/
 │   ├── passwords.py   → hash_password, verify_password (Argon2id)
-│   ├── sessions.py    → create_session, get_session_by_token, revoke_session (SHA-256)
+│   ├── sessions.py    → create_session, get_session_by_token, revoke_session (HMAC-SHA-256)
 │   └── csrf.py        → constantes SESSION_COOKIE, CSRF_HEADER
 └── services/
     ├── tmdb.py        → httpx + cache TTL, get_trending, search_movies, get_movie_detail
     ├── movie_sync.py  → upsert_movie_from_tmdb, get_or_sync_movie
+    ├── demo_seed.py   → carga idempotente para apresentacao
     └── ratings.py     → compute_community_rating
 ```
 
@@ -160,11 +161,11 @@ R: `docker compose run --rm fastapi pytest` testa o backend com SQLite em memori
 
 1. Mostrar `docker-compose.yml` — tres servicos, rede, volume, portas somente no nginx
 2. Mostrar `nginx/default.conf` — proxy reverso `/api`
-3. Abrir `http://localhost` — home page com filmes do TMDB
-4. Registrar uma conta — mostrar cookie de sessao no DevTools
+3. Abrir `http://localhost` — login com acessos didaticos
+4. Entrar com `usuario@cineview.local` / `CineView@User2026`
 5. Adicionar filme a lista / marcar assistido
 6. Avaliar um filme com estrelas
-7. Abrir `http://localhost/admin/login` — login admin
+7. Sair e entrar com `admin@cineview.local` / `CineView@Admin2026`
 8. Mostrar dashboard de admin, importar filme do TMDB, ver lista de usuarios
 9. Abrir `http://localhost/api/docs` — documentacao FastAPI automatica
 10. Mostrar `backend/app/routers/auth.py` — seguranca de sessao

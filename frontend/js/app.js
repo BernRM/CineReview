@@ -1,7 +1,7 @@
 import { renderHeader } from './components/header.js';
 import { renderFooter } from './components/footer.js';
 import { authMe } from './api.js';
-import { setUser, isAdmin } from './state.js';
+import { setUser, isLoggedIn } from './state.js';
 import { route, navigate, init } from './router.js';
 
 import { homePage }         from './pages/home.js';
@@ -47,6 +47,11 @@ route('/admin/moderacao',() => adminModerationPage());
     const me = await authMe();
     if (me) setUser(me);
   } catch (_) {}
+
+  // Presentation entry point: unauthenticated visitors start at the login page.
+  if (location.pathname === '/' && !isLoggedIn()) {
+    history.replaceState(null, '', '/login');
+  }
 
   // Render persistent layout
   renderHeader();

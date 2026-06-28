@@ -44,9 +44,35 @@ def _bootstrap_admin():
         db.close()
 
 
+def _bootstrap_demo_data():
+    """Populate deterministic presentation data when demo mode is enabled."""
+    from app.services.demo_seed import seed_demo_data
+
+    if not get_settings().demo_seed_enabled:
+        logger.info("Bootstrap: carga de demonstração desativada.")
+        return
+
+    db = SessionLocal()
+    try:
+        summary = seed_demo_data(db)
+        logger.info(
+            "Bootstrap demo: %s usuários, %s filmes e %s avaliações disponíveis.",
+            summary["users"],
+            summary["movies"],
+            summary["reviews"],
+        )
+    except Exception:
+        db.rollback()
+        logger.exception("Falha ao preparar os dados de demonstração.")
+        raise
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _bootstrap_admin()
+    _bootstrap_demo_data()
     yield
 
 

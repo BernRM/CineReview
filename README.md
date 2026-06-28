@@ -77,6 +77,7 @@ COOKIE_SECURE=false                       # true em produção HTTPS
 ADMIN_EMAIL=admin@exemplo.com
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=senha_forte_do_admin
+DEMO_SEED_ENABLED=true                   # Dados prontos para apresentação
 ```
 
 > Para obter o `TMDB_API_TOKEN`: crie conta em themoviedb.org → Configurações → API → "API Read Access Token (v4)".
@@ -95,6 +96,17 @@ docker compose up --build
 | Admin | http://localhost/admin/login |
 
 O primeiro admin é criado automaticamente a partir das variáveis `ADMIN_*` do `.env` (apenas se não existir nenhum admin).
+
+Com `DEMO_SEED_ENABLED=true`, o primeiro boot também prepara filmes, gêneros,
+avaliações, listas e duas contas didáticas:
+
+| Acesso | E-mail | Senha |
+|---|---|---|
+| Usuário | `usuario@cineview.local` | `CineView@User2026` |
+| Administrador | `admin@cineview.local` | `CineView@Admin2026` |
+
+Os dados são idempotentes e não se duplicam ao reiniciar. Para um ambiente sem
+conteúdo de apresentação, defina `DEMO_SEED_ENABLED=false`.
 
 ## Migrações
 
@@ -200,7 +212,7 @@ npm run test:e2e
 A suíte E2E valida inicialização da SPA, cadastro, perfil, autorização,
 administração, filme local, watchlist, assistidos, avaliações e layout móvel.
 Ela usa `E2E_ADMIN_EMAIL` e `E2E_ADMIN_PASSWORD`; quando não definidos, assume
-`admin@cineview.local` e `E2E-admin-password-2026`. Use um banco de
+`admin@cineview.local` e `CineView@Admin2026`. Use um banco de
 desenvolvimento, pois os fluxos criam usuários e filmes identificados como E2E.
 
 ## Comandos Úteis

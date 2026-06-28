@@ -29,6 +29,7 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@exemplo.com}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      DEMO_SEED_ENABLED: ${DEMO_SEED_ENABLED:-true}
     expose:
       - "8080"
     depends_on:

@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     admin_email: str = "admin@exemplo.com"
     admin_username: str = "admin"
     admin_password: str = ""
+    demo_seed_enabled: bool = True
 
     @property
     def database_url(self) -> str:

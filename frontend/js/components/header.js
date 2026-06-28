@@ -120,7 +120,7 @@ function _updateAuthActions(actions) {
         const { setUser } = await import('../state.js');
         setUser(null);
         toastOk('Sessão encerrada.');
-        navigate('/');
+        navigate('/login');
       } catch { toastError('Erro ao sair.'); }
     });
     actions.append(profileLink, logoutBtn);

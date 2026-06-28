@@ -1,16 +1,31 @@
 import { expect, test } from '@playwright/test';
 
 const adminEmail = process.env.E2E_ADMIN_EMAIL || 'admin@cineview.local';
-const adminPassword = process.env.E2E_ADMIN_PASSWORD || 'E2E-admin-password-2026';
+const adminPassword = process.env.E2E_ADMIN_PASSWORD || 'CineView@Admin2026';
 
 test('a SPA inicia sem erros de módulo', async ({ page }) => {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
 
   await page.goto('/');
+  await expect(page).toHaveURL(/\/login$/);
   await expect(page.locator('#site-header')).toContainText('CineView');
   await expect(page.locator('main')).toBeVisible();
+  await expect(page.locator('.demo-account')).toHaveCount(2);
   expect(pageErrors).toEqual([]);
+});
+
+test('conta didática de usuário abre o catálogo populado', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('.demo-account-user').click();
+  await expect(page.locator('#email')).toHaveValue('usuario@cineview.local');
+  await expect(page.locator('#password')).toHaveValue('CineView@User2026');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Duna: Parte Dois' })).toBeVisible();
+  await expect(page.locator('.movie-card')).toHaveCount(9);
+  await expect(page.locator('a[href="/admin"]')).toHaveCount(0);
 });
 
 test('usuário se cadastra, edita o perfil e não acessa o painel admin', async ({ page }) => {
