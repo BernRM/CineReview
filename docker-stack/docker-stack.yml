@@ -132,6 +132,9 @@ services:
 
 networks:
   cineview_net:
+    # 'name' fixa o nome real da rede; sem isto o Swarm prefixa com o nome da
+    # stack (ficaria 'cineview_cineview_net'), quebrando os comandos de consulta.
+    name: cineview_net
     driver: overlay
     attachable: true
 
