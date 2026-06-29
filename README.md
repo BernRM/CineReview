@@ -435,20 +435,22 @@ Acesse a aplicação em `http://<IP-VM2>` (ou `https://<IP-VM2>`).
 
 ## Consultar logs no Loki (via API HTTP)
 
-O FastAPI envia ao Loki: inicialização da app, cada requisição (método/rota/status) e erros de conexão com o PostgreSQL. Consulte direto pela API HTTP (a partir da VM1, ou de qualquer nó usando o IP da VM1):
+O FastAPI envia ao Loki: inicialização da app, cada requisição (método/rota/status) e erros de conexão com o PostgreSQL. Como o Loki **não publica porta ao host** (isolamento de rede), a consulta é feita **de dentro da rede overlay**: subimos um container `curl` temporário anexado à rede `cineview_net`. Rode na **VM2 (manager)**:
 
 ```bash
-# Labels disponíveis
-curl http://<IP-VM1>:3100/loki/api/v1/labels
+# Labels disponíveis (prova que o Loki está recebendo dados)
+docker run --rm --network cineview_net curlimages/curl:latest \
+  curl -s http://loki:3100/loki/api/v1/labels
 
 # Logs do FastAPI nos últimos 10 minutos
-curl -G 'http://<IP-VM1>:3100/loki/api/v1/query_range' \
+docker run --rm --network cineview_net curlimages/curl:latest \
+  curl -sG 'http://loki:3100/loki/api/v1/query_range' \
   --data-urlencode 'query={service="fastapi"}' \
-  --data-urlencode 'start='"$(date -d '10 minutes ago' +%s000000000)" \
-  --data-urlencode 'end='"$(date +%s000000000)"
+  --data-urlencode "start=$(date -d '10 minutes ago' +%s000000000)" \
+  --data-urlencode "end=$(date +%s000000000)"
 ```
 
-> Como o Loki **não expõe porta ao host externo**, rode o `curl` de dentro do cluster (ex.: na VM1) ou de um container anexado à rede `cineview_net`.
+> O nome `loki` é resolvido pelo DNS interno do Swarm. A rede está marcada como `attachable: true` justamente para permitir anexar containers avulsos a ela. O `$(date ...)` é avaliado no shell da VM2 (Linux/GNU date) antes de entrar no container.
 
 ## Grafana (interface visual — desafio extra)
 

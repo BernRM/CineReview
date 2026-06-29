@@ -155,13 +155,16 @@ docker service logs cineview_fastapi             # logs (stdout) do serviço
 docker stack rm cineview                         # remove a stack
 ```
 
-Loki (API HTTP):
+Loki (API HTTP, de dentro da overlay — rode na VM2):
 ```bash
-curl http://<IP-VM1>:3100/loki/api/v1/labels
-curl -G 'http://<IP-VM1>:3100/loki/api/v1/query_range' \
+docker run --rm --network cineview_net curlimages/curl:latest \
+  curl -s http://loki:3100/loki/api/v1/labels
+
+docker run --rm --network cineview_net curlimages/curl:latest \
+  curl -sG 'http://loki:3100/loki/api/v1/query_range' \
   --data-urlencode 'query={service="fastapi"}' \
-  --data-urlencode 'start='"$(date -d '10 minutes ago' +%s000000000)" \
-  --data-urlencode 'end='"$(date +%s000000000)"
+  --data-urlencode "start=$(date -d '10 minutes ago' +%s000000000)" \
+  --data-urlencode "end=$(date +%s000000000)"
 ```
 
 ---
@@ -170,7 +173,7 @@ curl -G 'http://<IP-VM1>:3100/loki/api/v1/query_range' \
 
 - **`docker stack deploy` não lê `.env`** (diferente do compose). Por isso exportamos as variáveis na sessão antes (`set -a; . docker-stack/.env; set +a`).
 - **Migrações com 2 réplicas**: o FastAPI roda `alembic upgrade head` ao subir. Com 2 réplicas iniciando juntas, ambas tentam migrar; o Alembic usa transações e a segunda normalmente vê que já está no head e não faz nada. Em produção, o ideal seria rodar a migração como tarefa única (job) separada do serviço.
-- **Consultar o Loki**: como ele não publica porta ao host externo, a consulta é feita de dentro do cluster (na VM1) ou de um container anexado à overlay.
+- **Consultar o Loki**: como ele não publica porta ao host externo, a consulta é feita de dentro do cluster — subimos um container `curl` anexado à overlay `cineview_net` (que é `attachable`). Por isso não funciona um `curl localhost:3100` direto no host da VM.
 - **Constraints reduzem failover**: fixar serviço a um nó é uma escolha de arquitetura (separação de camadas), não um descuido.
 
 ---

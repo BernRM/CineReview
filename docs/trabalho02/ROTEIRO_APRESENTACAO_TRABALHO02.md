@@ -76,17 +76,19 @@ docker secret ls
 
 ## Parte 5 — Logs no Loki via API HTTP (2–3 min) ⭐ *o que o professor exige*
 
-No terminal da **VM1**:
+No terminal da **VM2 (manager)** — um container `curl` temporário entra na rede overlay (o Loki não publica porta ao host):
 
 ```bash
 # 1) Labels disponíveis — prova que o Loki está recebendo dados
-curl http://localhost:3100/loki/api/v1/labels
+docker run --rm --network cineview_net curlimages/curl:latest \
+  curl -s http://loki:3100/loki/api/v1/labels
 
 # 2) Logs do FastAPI dos últimos 10 minutos
-curl -G 'http://localhost:3100/loki/api/v1/query_range' \
+docker run --rm --network cineview_net curlimages/curl:latest \
+  curl -sG 'http://loki:3100/loki/api/v1/query_range' \
   --data-urlencode 'query={service="fastapi"}' \
-  --data-urlencode 'start='"$(date -d '10 minutes ago' +%s000000000)" \
-  --data-urlencode 'end='"$(date +%s000000000)"
+  --data-urlencode "start=$(date -d '10 minutes ago' +%s000000000)" \
+  --data-urlencode "end=$(date +%s000000000)"
 ```
 
 > "O FastAPI envia ao Loki: a **inicialização** da app, **cada requisição** (método, rota e status) e **erros de conexão com o PostgreSQL**. Aqui consultamos direto pela **API HTTP**, sem interface gráfica."
