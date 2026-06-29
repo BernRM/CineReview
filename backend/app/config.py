@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -39,9 +40,15 @@ class Settings(BaseSettings):
             try:
                 with open(self.db_password_file, "r", encoding="utf-8") as handle:
                     self.db_password = handle.read().strip()
-            except OSError:
-                # Mantém db_password atual se o arquivo não existir/for ilegível.
-                pass
+            except OSError as exc:
+                # Não derruba a aplicação, mas avisa: um secret configurado e
+                # ilegível indica erro de deploy. A conexão com o banco usando
+                # a senha-padrão falhará em seguida e será registrada.
+                logging.getLogger("cineview").warning(
+                    "Não foi possível ler DB_PASSWORD_FILE (%s): %s",
+                    self.db_password_file,
+                    exc,
+                )
         return self
 
     @property
