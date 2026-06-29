@@ -288,7 +288,7 @@ docker compose down
 ├── playwright.config.js
 ├── .env.example
 ├── docker-compose.yml
-└── GUIA_ESTUDO_APRESENTACAO.md
+└── docs/                      # Guias de estudo, roteiro e enunciado do trabalho
 ```
 
 ## Observações

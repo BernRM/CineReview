@@ -1,13 +1,29 @@
+# Ambiente / segredos
 .env
 .env.local
+
+# Python
 __pycache__/
 *.pyc
 .venv/
-node_modules/
 *.egg-info/
-dist/
 .pytest_cache/
 htmlcov/
 .coverage
+
+# Node
+node_modules/
+dist/
+
+# Testes E2E
 playwright-report/
 test-results/
+
+# Ferramentas / IDE
+.claude/
+.vscode/
+.idea/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
