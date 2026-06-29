@@ -33,18 +33,21 @@ Mostrar o diagrama de topologia (no README, seção Trabalho 02).
 ```bash
 docker node ls
 ```
+
 > "Temos dois nós: a VM2 é o **manager** e a VM1 é o **worker**. Rotulamos os nós com `tier=app` e `tier=data`."
 
 ```bash
 docker node inspect <nó-VM1> --format '{{ .Spec.Labels }}'
 docker stack services cineview
 ```
+
 > "A stack tem cinco serviços. NGINX e FastAPI com **2 réplicas**; PostgreSQL, Loki e Grafana com 1."
 
 ```bash
 docker service ps cineview_postgres --format 'table {{.Name}}\t{{.Node}}\t{{.CurrentState}}'
 docker service ps cineview_fastapi  --format 'table {{.Name}}\t{{.Node}}\t{{.CurrentState}}'
 ```
+
 > "Repare: o PostgreSQL roda **só na VM1** e as réplicas do FastAPI **só na VM2**. Isso é garantido pelas **placement constraints** baseadas nos labels — abrir o `docker-stack/docker-stack.yml` e apontar o bloco `placement.constraints`."
 
 **Mostrar no código:** `docker-stack/docker-stack.yml` → blocos `deploy.placement.constraints` e `networks: cineview_net: driver: overlay`.
@@ -64,6 +67,7 @@ docker service ps cineview_fastapi  --format 'table {{.Name}}\t{{.Node}}\t{{.Cur
 ```bash
 docker secret ls
 ```
+
 > "A senha do banco é um **secret do Swarm**, não está no Git nem em variável de ambiente. O Postgres lê via `POSTGRES_PASSWORD_FILE` e o FastAPI lê o mesmo arquivo montado em `/run/secrets/db_password`."
 
 **Mostrar no código:** `config.py` (validador `_load_password_from_file`) e o bloco `secrets:` no stack.
@@ -110,6 +114,7 @@ curl http://<IP-VM1>:5432    # PostgreSQL: conexão recusada
 curl http://<IP-VM1>:3100    # Loki: não publicado ao host
 curl -I http://<IP-VM2>      # NGINX: responde
 ```
+
 > "Só o NGINX publica porta para o host. Banco, Loki e FastAPI vivem apenas na rede overlay interna do cluster."
 
 ---
@@ -122,12 +127,13 @@ curl -I http://<IP-VM2>      # NGINX: responde
 
 ## Se algo der errado ao vivo (plano B)
 
-| Sintoma | Verificação rápida |
-|---|---|
+| Sintoma                      | Verificação rápida                                                                          |
+| ---------------------------- | ---------------------------------------------------------------------------------------------- |
 | Serviço sem réplicas (0/2) | `docker service ps <serviço> --no-trunc` → ver erro (imagem faltando? constraint sem nó?) |
-| FastAPI reiniciando | `docker service logs cineview_fastapi` → erro de conexão com banco? |
-| Loki sem dados | Gere tráfego (atualize o site) e refaça a query; confira `docker service ps cineview_loki` |
-| App não abre | Confirme NGINX 2/2 e que está acessando o IP da **VM2** |
-| Query do Loki vazia | Aumente a janela de tempo (start de 1h atrás) |
+| FastAPI reiniciando          | `docker service logs cineview_fastapi` → erro de conexão com banco?                        |
+| Loki sem dados               | Gere tráfego (atualize o site) e refaça a query; confira`docker service ps cineview_loki`  |
+| App não abre                | Confirme NGINX 2/2 e que está acessando o IP da**VM2**                                  |
+| Query do Loki vazia          | Aumente a janela de tempo (start de 1h atrás)                                                 |
 
 > Mantenha o **README** aberto numa aba — todos os comandos estão lá na seção "Trabalho 02".
+

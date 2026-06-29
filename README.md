@@ -23,6 +23,22 @@ O **CineView** é uma aplicação web conteinerizada para descobrir, avaliar e o
 - Maria Laura Barbosa Lourenco Cesar
 - Emily Bedim Jorge Borges
 
+## Mapa do repositório
+
+> 🟦 **Trabalho 01** — aplicação conteinerizada (Docker Compose) · 🟩 **Trabalho 02** — port para cluster Docker Swarm + observabilidade
+
+| Caminho | Atividade | O que é |
+|---|---|---|
+| `backend/` · `frontend/` · `nginx/` | 🟦 compartilhado | Base da aplicação (FastAPI, SPA, proxy) — usada pelas duas atividades |
+| `docker-compose.yml` | 🟦 T1 | Orquestração local (1 host) |
+| `docs/trabalho01/` | 🟦 T1 | Guia de estudo, roteiro e enunciado da Atividade 1 |
+| `backend/app/logger.py` | 🟩 T2 | Cliente HTTP que envia logs ao Grafana Loki |
+| `docker-stack/` | 🟩 T2 | Stack do Docker Swarm (overlay, constraints, secret, réplicas) |
+| `loki/` · `grafana/` | 🟩 T2 | Configuração da coleta e visualização de logs |
+| `docs/trabalho02/` | 🟩 T2 | Guia de estudo e roteiro de apresentação da Atividade 2 |
+
+O detalhamento do Trabalho 02 está na seção [Trabalho 02 — Deploy em cluster Docker Swarm](#trabalho-02--deploy-em-cluster-docker-swarm) ao final.
+
 ## Stack
 
 | Camada | Tecnologia |
@@ -288,8 +304,13 @@ docker compose down
 ├── package.json
 ├── playwright.config.js
 ├── .env.example
-├── docker-compose.yml
-└── docs/                      # Guias de estudo, roteiro e enunciado do trabalho
+├── docker-compose.yml         # 🟦 T1 — orquestração local
+├── docker-stack/              # 🟩 T2 — stack do Docker Swarm
+├── loki/                      # 🟩 T2 — configuração do Loki
+├── grafana/                   # 🟩 T2 — datasource do Loki no Grafana
+└── docs/
+    ├── trabalho01/            # Guias e enunciado da Atividade 1
+    └── trabalho02/            # Guia de estudo e roteiro da Atividade 2
 ```
 
 ## Observações
