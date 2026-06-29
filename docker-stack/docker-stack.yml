@@ -1,0 +1,150 @@
+# =============================================================================
+# CineView — Stack do Docker Swarm (Trabalho 02 — Grupo 7)
+#
+# Topologia (2 VMs):
+#   VM1  (label tier=data, worker)  -> postgres, loki
+#   VM2  (label tier=app,  manager) -> nginx, fastapi, grafana
+#
+# Deploy a partir da RAIZ do repositório:
+#   docker stack deploy -c docker-stack/docker-stack.yml cineview
+#
+# Pré-requisitos antes do deploy (ver README, seção "Trabalho 02"):
+#   - Swarm iniciado e as 2 VMs no cluster
+#   - Nós rotulados:  docker node update --label-add tier=data  <nó-vm1>
+#                     docker node update --label-add tier=app   <nó-vm2>
+#   - Secret criado:  printf "<senha>" | docker secret create db_password -
+#   - Imagens custom buildadas na VM2: cineview-fastapi:latest e cineview-nginx:latest
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------- VM1 (dados)
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-cinereview}
+      # Lê a senha do secret do Swarm em vez de uma variável de ambiente.
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cineview_net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == data
+      restart_policy:
+        condition: on-failure
+
+  loki:
+    image: grafana/loki:3.0.0
+    command: -config.file=/etc/loki/loki-config.yaml
+    configs:
+      - source: loki_config
+        target: /etc/loki/loki-config.yaml
+    volumes:
+      - loki_data:/loki
+    networks:
+      - cineview_net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == data
+      restart_policy:
+        condition: on-failure
+
+  # ------------------------------------------------------------- VM2 (aplicação)
+  fastapi:
+    image: cineview-fastapi:latest
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-cinereview}
+      DB_USER: postgres
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      LOKI_URL: http://loki:3100
+      TMDB_API_TOKEN: ${TMDB_API_TOKEN:-}
+      SESSION_SECRET: ${SESSION_SECRET:-insecure-dev-secret-change-me}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@exemplo.com}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      DEMO_SEED_ENABLED: ${DEMO_SEED_ENABLED:-true}
+    secrets:
+      - db_password
+    networks:
+      - cineview_net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.labels.tier == app
+      restart_policy:
+        condition: on-failure
+
+  nginx:
+    image: cineview-nginx:latest
+    ports:
+      - "80:8080"
+      - "443:8443"
+    networks:
+      - cineview_net
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.labels.tier == app
+      restart_policy:
+        condition: on-failure
+
+  # Desafio extra: interface visual para os logs do Loki (na VM2).
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      # Acesso anônimo (Viewer) facilita a demonstração; admin protegido por senha.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    configs:
+      - source: grafana_datasource
+        target: /etc/grafana/provisioning/datasources/loki.yaml
+    networks:
+      - cineview_net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == app
+      restart_policy:
+        condition: on-failure
+
+networks:
+  cineview_net:
+    driver: overlay
+    attachable: true
+
+volumes:
+  postgres_data:
+  loki_data:
+
+configs:
+  loki_config:
+    file: ../loki/loki-config.yaml
+  grafana_datasource:
+    file: ../grafana/datasource.yaml
+
+secrets:
+  db_password:
+    external: true

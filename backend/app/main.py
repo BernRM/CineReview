@@ -1,11 +1,13 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 from app.config import get_settings
-from app.database import SessionLocal
+from app.database import SessionLocal, check_database_connection
+from app.logger import alog_event, log_event
 from app.routers import auth, catalog, movies, users, admin
 
 logging.basicConfig(level=logging.INFO)
@@ -71,6 +73,11 @@ def _bootstrap_demo_data():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log_event("Aplicação CineView iniciada.", "info")
+    try:
+        check_database_connection()
+    except Exception as exc:  # noqa: BLE001 - registra antes de propagar
+        log_event(f"Erro de conexão com o PostgreSQL: {exc}", "error")
     _bootstrap_admin()
     _bootstrap_demo_data()
     yield
@@ -87,6 +94,19 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
     lifespan=lifespan,
 )
+
+@app.middleware("http")
+async def loki_request_logging(request: Request, call_next):
+    """Envia ao Loki um registro de cada requisição (método, rota, status).
+
+    O envio é agendado como tarefa em segundo plano para não atrasar a resposta.
+    """
+    response = await call_next(request)
+    message = f"{request.method} {request.url.path} -> {response.status_code}"
+    level = "error" if response.status_code >= 500 else "info"
+    asyncio.create_task(alog_event(message, level))
+    return response
+
 
 app.include_router(auth.router)
 app.include_router(catalog.router)

@@ -35,7 +35,8 @@ O **CineView** é uma aplicação web conteinerizada para descobrir, avaliar e o
 | Integração | TMDB API v3 (httpx + cache TTL) |
 | Frontend | SPA ES Modules (sem framework) |
 | Testes | pytest + SQLite in-memory + Playwright |
-| Orquestração | Docker Compose |
+| Logs (Trabalho 02) | Grafana Loki (agregação centralizada via HTTP) |
+| Orquestração | Docker Compose (local) · **Docker Swarm** (cluster, Trabalho 02) |
 
 ## Arquitetura
 
@@ -297,3 +298,154 @@ docker compose down
 - O frontend nunca chama o FastAPI diretamente — usa `/api` via NGINX.
 - O TMDB é opcional: sem token configurado, o catálogo mostra apenas dados locais.
 - Não use `docker compose down -v` em produção — apaga o volume do banco.
+
+---
+
+# Trabalho 02 — Deploy em cluster Docker Swarm
+
+Evolução do Trabalho 01: a mesma aplicação portada para um **cluster Docker Swarm de 2 VMs**, com separação de camadas, rede overlay, placement constraints, secret do Swarm e coleta centralizada de logs com **Grafana Loki**.
+
+## Topologia do cluster
+
+```
+┌──────────────────────────────────┐        ┌──────────────────────────────────┐
+│  VM1 — Camada de Dados (worker)   │        │ VM2 — Camada de Aplicação (manager)│
+│  label: tier=data                 │        │ label: tier=app                    │
+│                                   │        │                                    │
+│   ┌────────────┐  ┌───────────┐   │        │  ┌─────────┐   ┌─────────────┐    │
+│   │ PostgreSQL │  │   Loki    │   │        │  │  NGINX  │   │   FastAPI   │    │
+│   │  :5432     │  │  :3100    │   │        │  │ :80/:443│   │   :8080     │    │
+│   │  1 réplica │  │ 1 réplica │   │        │  │2 réplicas│  │  2 réplicas │    │
+│   └────────────┘  └───────────┘   │        │  └─────────┘   └─────────────┘    │
+│                                   │        │  ┌──────────────────────────┐     │
+│  (sem portas expostas ao host)    │        │  │ Grafana :3000 (extra)    │     │
+│                                   │        │  └──────────────────────────┘     │
+└─────────────────┬─────────────────┘        └─────────────────┬─────────────────┘
+                  │                                             │
+                  └────────── rede overlay (cineview_net) ──────┘
+```
+
+| Serviço | VM | Réplicas | Exposto ao host |
+|---|---|---|---|
+| PostgreSQL | VM1 (`tier=data`) | 1 | Não |
+| Loki | VM1 (`tier=data`) | 1 | Não |
+| NGINX | VM2 (`tier=app`) | 2 | **Sim (80/443)** |
+| FastAPI | VM2 (`tier=app`) | 2 | Não |
+| Grafana (extra) | VM2 (`tier=app`) | 1 | Sim (3000) |
+
+## Arquivos do Trabalho 02
+
+| Caminho | Função |
+|---|---|
+| `docker-stack/docker-stack.yml` | Stack do Swarm: serviços, overlay, constraints, secret, configs, réplicas |
+| `docker-stack/.env.example` | Variáveis do deploy (exportar antes do `stack deploy`) |
+| `loki/loki-config.yaml` | Configuração do Loki (filesystem + tsdb) |
+| `grafana/datasource.yaml` | Datasource do Loki provisionado no Grafana |
+| `backend/app/logger.py` | Cliente HTTP que envia logs ao Loki (`/loki/api/v1/push`) |
+
+## Pré-requisitos
+
+- 2 VMs Linux com Docker Engine, na mesma rede, podendo se enxergar.
+- **VM2 = manager** (e ponto de entrada); **VM1 = worker** (dados).
+
+## Passo a passo do deploy
+
+> Os comandos `docker stack`, `docker node`, `docker secret` rodam **na VM2 (manager)**.
+
+### 1. Iniciar o Swarm e juntar as VMs
+
+```bash
+# Na VM2 (manager):
+docker swarm init --advertise-addr <IP-VM2>
+# O comando acima imprime um 'docker swarm join ...'; copie-o.
+
+# Na VM1 (worker), cole o token gerado:
+docker swarm join --token <TOKEN> <IP-VM2>:2377
+
+# De volta na VM2, confira os nós:
+docker node ls
+```
+
+### 2. Rotular os nós (separação de camadas)
+
+```bash
+# Na VM2 — use os nomes que aparecem em 'docker node ls':
+docker node update --label-add tier=data <nó-da-VM1>
+docker node update --label-add tier=app  <nó-da-VM2>
+```
+
+### 3. Criar o secret da senha do banco
+
+```bash
+printf "minha_senha_forte" | docker secret create db_password -
+docker secret ls
+```
+
+### 4. Construir as imagens custom na VM2
+
+`docker stack deploy` não faz build. Como NGINX e FastAPI ficam fixos na VM2, basta buildá-los nela (Postgres, Loki e Grafana usam imagens oficiais):
+
+```bash
+# Na VM2, a partir da raiz do repositório:
+docker build -t cineview-fastapi:latest ./backend
+docker build -t cineview-nginx:latest  -f nginx/Dockerfile .
+```
+
+### 5. Configurar variáveis e implantar a stack
+
+```bash
+# Na VM2, a partir da raiz do repositório:
+cp docker-stack/.env.example docker-stack/.env   # ajuste ADMIN_PASSWORD, SESSION_SECRET...
+set -a; . docker-stack/.env; set +a              # docker stack NÃO lê .env sozinho
+
+docker stack deploy -c docker-stack/docker-stack.yml cineview
+```
+
+### 6. Verificar o estado
+
+```bash
+docker stack services cineview          # réplicas de cada serviço (ex.: 2/2)
+docker service ps cineview_fastapi       # em qual nó cada tarefa está rodando
+docker service ps cineview_postgres      # deve estar na VM1
+docker node ps <nó-da-VM1>               # tarefas rodando na VM1
+```
+
+Acesse a aplicação em `http://<IP-VM2>` (ou `https://<IP-VM2>`).
+
+## Consultar logs no Loki (via API HTTP)
+
+O FastAPI envia ao Loki: inicialização da app, cada requisição (método/rota/status) e erros de conexão com o PostgreSQL. Consulte direto pela API HTTP (a partir da VM1, ou de qualquer nó usando o IP da VM1):
+
+```bash
+# Labels disponíveis
+curl http://<IP-VM1>:3100/loki/api/v1/labels
+
+# Logs do FastAPI nos últimos 10 minutos
+curl -G 'http://<IP-VM1>:3100/loki/api/v1/query_range' \
+  --data-urlencode 'query={service="fastapi"}' \
+  --data-urlencode 'start='"$(date -d '10 minutes ago' +%s000000000)" \
+  --data-urlencode 'end='"$(date +%s000000000)"
+```
+
+> Como o Loki **não expõe porta ao host externo**, rode o `curl` de dentro do cluster (ex.: na VM1) ou de um container anexado à rede `cineview_net`.
+
+## Grafana (interface visual — desafio extra)
+
+Acesse `http://<IP-VM2>:3000` → **Explore** → datasource **Loki** → query `{service="fastapi"}`. O datasource já vem provisionado apontando para `http://loki:3100`. Acesso anônimo (Viewer) habilitado; login admin: usuário `admin`, senha definida em `GRAFANA_ADMIN_PASSWORD`.
+
+## Comprovar isolamento de rede
+
+```bash
+# A partir de uma máquina FORA do cluster, estas conexões devem FALHAR:
+curl http://<IP-VM1>:5432    # PostgreSQL — recusado
+curl http://<IP-VM1>:3100    # Loki — recusado (não publicado ao host)
+# Apenas o NGINX responde:
+curl -I http://<IP-VM2>      # 200/30x
+```
+
+## Remover a stack
+
+```bash
+docker stack rm cineview
+# (os volumes postgres_data e loki_data persistem; remova-os manualmente se quiser zerar)
+```
