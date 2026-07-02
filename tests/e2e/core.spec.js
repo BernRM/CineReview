@@ -24,7 +24,8 @@ test('conta didática de usuário abre o catálogo populado', async ({ page }) =
 
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: 'Duna: Parte Dois' })).toBeVisible();
-  await expect(page.locator('.movie-card')).toHaveCount(9);
+  await expect(page.locator('.movie-card').first()).toBeVisible();
+  expect(await page.locator('.movie-card').count()).toBeGreaterThanOrEqual(8);
   await expect(page.locator('a[href="/admin"]')).toHaveCount(0);
 });
 

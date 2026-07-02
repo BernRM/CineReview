@@ -102,7 +102,12 @@ multipass exec vm2 -- sudo docker stack services cineview
 multipass exec vm2 -- bash -c "sudo docker service ps cineview_postgres cineview_loki cineview_fastapi cineview_nginx cineview_grafana --filter desired-state=running --format 'table {{.Name}}\t{{.Node}}\t{{.CurrentState}}'"
 ```
 
-Abra no navegador do Windows: **http://<IP-VM2>** (login admin: `admin` / `Admin@123`).
+Abra no navegador do Windows: **http://<IP-VM2>**. Na tela de login, clique
+na conta didática de administrador:
+
+- e-mail: `admin@cineview.local`
+- senha: `CineView@Admin2026`
+
 Grafana (extra): **http://<IP-VM2>:3000**.
 
 ## Fase 8 — Logs no Loki (via API HTTP, de dentro da overlay)
@@ -111,8 +116,10 @@ Grafana (extra): **http://<IP-VM2>:3000**.
 # Gera tráfego e lista labels:
 multipass exec vm2 -- bash -c "for i in 1 2 3; do curl -s -o /dev/null http://localhost/api/health; done; sudo docker run --rm --network cineview_net curlimages/curl:latest -s http://loki:3100/loki/api/v1/labels"
 
-# Consulta os logs do fastapi (última 1h):
-multipass exec vm2 -- bash -c 'START=$(($(date +%s)-3600))000000000; END=$(date +%s)000000000; sudo docker run --rm --network cineview_net curlimages/curl:latest -sG http://loki:3100/loki/api/v1/query_range --data-urlencode "query={service=\"fastapi\"}" --data-urlencode "start=$START" --data-urlencode "end=$END"'
+# Consulta os logs do fastapi (última 1h).
+# A URL codificada evita problemas de aspas entre PowerShell, Multipass e Bash:
+$lokiQuery = 'http://loki:3100/loki/api/v1/query_range?query=%7Bservice%3D%22fastapi%22%7D&since=1h&limit=20'
+multipass exec vm2 -- sudo docker run --rm --network cineview_net curlimages/curl:latest -sS $lokiQuery
 ```
 
 > A rede se chama **`cineview_net`** (fixada no stack). O Loki não publica porta
@@ -137,6 +144,53 @@ multipass start vm1 vm2                                  # liga de novo
 multipass delete --purge vm1 vm2                         # apaga as VMs de vez
 ```
 
+## No dia da apresentação: ligar e conferir
+
+Os endereços da rede bridge vêm do DHCP e podem mudar quando as VMs são
+desligadas. Prepare o cluster antes da entrevista e, depois que tudo estiver
+funcionando, **não reinicie as VMs**.
+
+```powershell
+multipass start vm1 vm2
+multipass list
+multipass exec vm2 -- sudo docker node ls
+multipass exec vm2 -- sudo docker stack services cineview
+```
+
+Se os dois nós estiverem `Ready` e as réplicas chegarem a `2/2` e `1/1`, basta
+abrir o IP atual da VM2. Se `vm1` aparecer como `Down` depois que os IPs
+mudaram, recrie apenas o controle do Swarm. Os volumes e dados são mantidos:
+
+```powershell
+# Capture os IPs atuais exibidos pelo Multipass.
+$vm1Ip = ((multipass info vm1 | Select-String 'IPv4:' | Select-Object -First 1).ToString() -split '\s+')[-1]
+$vm2Ip = ((multipass info vm2 | Select-String 'IPv4:' | Select-Object -First 1).ToString() -split '\s+')[-1]
+
+# Remova a stack e refaça o cluster nos endereços atuais.
+multipass exec vm2 -- sudo docker stack rm cineview
+Start-Sleep -Seconds 15
+multipass exec vm1 -- sudo docker swarm leave --force
+multipass exec vm2 -- sudo docker swarm leave --force
+multipass exec vm2 -- sudo docker swarm init --advertise-addr $vm2Ip
+$token = (multipass exec vm2 -- sudo docker swarm join-token -q worker).Trim()
+multipass exec vm1 -- sudo docker swarm join --token $token "${vm2Ip}:2377"
+multipass exec vm2 -- sudo docker node update --label-add tier=data vm1
+multipass exec vm2 -- sudo docker node update --label-add tier=app vm2
+
+# Use EXATAMENTE a mesma senha usada quando o volume PostgreSQL foi criado.
+multipass exec vm2 -- bash -c "printf 'SenhaForte123' | sudo docker secret create db_password -"
+
+# Reimplante a aplicação.
+multipass exec vm2 -- bash -c "cd CineReview && export POSTGRES_DB=cinereview SESSION_SECRET=CineView-Cluster-2026-Segredo-Longo ADMIN_PASSWORD=Admin@123 ADMIN_USERNAME=admin ADMIN_EMAIL=admin@exemplo.com COOKIE_SECURE=false DEMO_SEED_ENABLED=true GRAFANA_ADMIN_PASSWORD=admin && sudo -E docker stack deploy -c docker-stack/docker-stack.yml cineview"
+
+# Espere até todos mostrarem 2/2 ou 1/1.
+multipass exec vm2 -- sudo docker stack services cineview
+```
+
+Neste ambiente de ensaio, o volume PostgreSQL foi criado com
+`SenhaForte123`. Se você montar outro ambiente, escolha a senha uma vez e use a
+mesma ao recriar o secret.
+
 ## Lições do ensaio (o que quebra se não cuidar)
 
 1. **Driver VirtualBox** é obrigatório no Windows Home (`multipass set local.driver=virtualbox`).
@@ -146,3 +200,5 @@ multipass delete --purge vm1 vm2                         # apaga as VMs de vez
 5. A rede vira **`cineview_net`** (fixada com `name:` no stack); use esse nome no `--network`.
 6. O **Loki não tem porta no host** — consulte sempre por um container na overlay.
 7. As imagens `cineview-*` são buildadas **na vm2**; Postgres/Loki/Grafana são oficiais.
+8. Se o DHCP mudar os IPs depois de desligar as VMs, o Swarm antigo deixa de
+   conectar os nós; use o procedimento de recuperação acima.
